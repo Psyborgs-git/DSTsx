@@ -22,5 +22,5 @@ export interface SignatureMeta {
   /** Ordered list of output field names with their metadata. */
   outputs: Map<string, FieldMeta>;
   /** Optional system-level instruction string. */
-  instructions?: string;
+  instructions?: string | undefined;
 }

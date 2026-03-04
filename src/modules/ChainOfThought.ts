@@ -44,7 +44,7 @@ export class ChainOfThought extends Predict {
   }
 
   /** Returns the answer without the internal rationale. */
-  async forward(inputs: Record<string, unknown>): Promise<Prediction> {
+  override async forward(inputs: Record<string, unknown>): Promise<Prediction> {
     const prediction = await super.forward(inputs);
     // Strip the rationale from the returned prediction so downstream modules
     // only see the actual output fields.
