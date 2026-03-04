@@ -23,6 +23,7 @@ describe("ReAct", () => {
   });
 
   it("calls tools when LM emits Action: toolName[args]", async () => {
+    let callCount = 0;
     const trackedTool: Tool = {
       name: "lookup",
       description: "Looks up a value",
