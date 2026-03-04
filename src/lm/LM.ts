@@ -1,6 +1,6 @@
 import { LRUCache } from "./cache.js";
 import { DiskCache } from "./DiskCache.js";
-import type { LMCallConfig, LMResponse, Message } from "./types.js";
+import type { LMCallConfig, LMResponse, Message, StreamChunk } from "./types.js";
 
 /**
  * Abstract base class for all language model adapters.
@@ -89,6 +89,22 @@ export abstract class LM {
   /** Clear the in-memory response cache. */
   clearCache(): void {
     this.#cache.clear();
+  }
+
+  /**
+   * Stream the language model response token by token.
+   *
+   * Returns an `AsyncIterable<StreamChunk>`. The last chunk has `done: true`.
+   * Subclasses override this to provide real streaming; the base implementation
+   * falls back to calling {@link LM.call} and yielding the full response as a
+   * single chunk.
+   */
+  async *stream(
+    prompt: string | Message[],
+    config: LMCallConfig = {},
+  ): AsyncGenerator<StreamChunk> {
+    const response = await this.call(prompt, config);
+    yield { delta: response.text, done: true, raw: response.raw };
   }
 
   // ---------------------------------------------------------------------------

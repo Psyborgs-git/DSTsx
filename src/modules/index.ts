@@ -14,3 +14,4 @@ export { TypedPredictor, TypedChainOfThought, TypedPrediction } from "./TypedPre
 export { Parallel } from "./Parallel.js";
 export { Refine } from "./Refine.js";
 export type { RefineOptions } from "./Refine.js";
+export { NativeReAct } from "./NativeReAct.js";

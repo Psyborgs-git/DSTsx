@@ -14,3 +14,12 @@ export { KNNFewShot } from "./KNNFewShot.js";
 export type { KNNFewShotOptions } from "./KNNFewShot.js";
 export { EnsembleOptimizer } from "./Ensemble.js";
 export type { EnsembleOptimizerOptions } from "./Ensemble.js";
+export { BootstrapFinetune } from "./BootstrapFinetune.js";
+export type { BootstrapFinetuneOptions, FinetuneFormat } from "./BootstrapFinetune.js";
+export { GRPO } from "./GRPO.js";
+export type { GRPOOptions } from "./GRPO.js";
+export { SIMBA } from "./SIMBA.js";
+export type { SIMBAOptions } from "./SIMBA.js";
+export { AvatarOptimizer } from "./AvatarOptimizer.js";
+export type { AvatarOptimizerOptions } from "./AvatarOptimizer.js";
+
