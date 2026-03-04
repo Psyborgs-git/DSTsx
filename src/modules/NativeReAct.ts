@@ -1,5 +1,6 @@
 import { Module } from "./Module.js";
 import { Prediction } from "../primitives/index.js";
+import { Signature } from "../signatures/index.js";
 import type { Tool } from "./ReAct.js";
 import { settings } from "../settings/index.js";
 import type { Message } from "../lm/types.js";
@@ -22,6 +23,7 @@ export class NativeReAct extends Module {
   readonly tools: ReadonlyMap<string, Tool>;
   readonly maxIter: number;
   readonly #signatureStr: string;
+  readonly #outputKey: string;
 
   constructor(
     signatureStr: string,
@@ -32,6 +34,9 @@ export class NativeReAct extends Module {
     this.#signatureStr = signatureStr;
     this.tools = new Map(tools.map((t) => [t.name, t]));
     this.maxIter = maxIter;
+    // Parse the output field name from the signature string
+    const sig = Signature.from(signatureStr);
+    this.#outputKey = [...sig.outputs.keys()][0] ?? "answer";
   }
 
   override async forward(inputs: Record<string, unknown>): Promise<Prediction> {
@@ -103,6 +108,6 @@ export class NativeReAct extends Module {
       }
     }
 
-    return new Prediction({ answer: finalAnswer, trajectory: JSON.stringify(trajectory) });
+    return new Prediction({ [this.#outputKey]: finalAnswer, trajectory: JSON.stringify(trajectory) });
   }
 }

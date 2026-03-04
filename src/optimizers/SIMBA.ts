@@ -47,7 +47,12 @@ export class SIMBA extends Optimizer {
     let bestScore = (await evaluate(best, evalBatch, metric)).score;
 
     for (let iter = 0; iter < this.#numIter; iter++) {
-      const shuffled = [...trainset].sort(() => Math.random() - 0.5);
+      // Fisher-Yates shuffle for unbiased sampling
+      const shuffled = [...trainset];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+      }
       const batch = shuffled.slice(0, Math.min(this.#batchSize, shuffled.length));
 
       const candidate = best.clone();

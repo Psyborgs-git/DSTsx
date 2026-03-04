@@ -1,4 +1,5 @@
-import { appendFileSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
+import { appendFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { Tracker } from "./Tracker.js";
 import type { TrackerEvent } from "./Tracker.js";
@@ -28,7 +29,8 @@ export class JsonFileTracker extends Tracker {
 
   override async flush(): Promise<void> {
     if (this.#buffer.length === 0) return;
-    appendFileSync(this.#path, this.#buffer.join("\n") + "\n", "utf8");
+    const content = this.#buffer.join("\n") + "\n";
     this.#buffer.length = 0;
+    await appendFile(this.#path, content, "utf8");
   }
 }
