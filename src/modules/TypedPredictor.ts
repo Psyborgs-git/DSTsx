@@ -142,8 +142,9 @@ export class TypedChainOfThought<T = unknown> extends TypedPredictor<T> {
 
   override async forward(inputs: Record<string, unknown>): Promise<TypedPrediction<T>> {
     const result = await super.forward(inputs);
-    const { rationale: _, ...rest } = result.toDict() as Record<string, unknown>;
-    void _;
+    // Destructure rationale out so it doesn't appear in the returned prediction.
+    const { rationale: _rationale, ...rest } = result.toDict() as Record<string, unknown>;
+    void _rationale;
     return new TypedPrediction<T>(
       rest,
       result.typed,

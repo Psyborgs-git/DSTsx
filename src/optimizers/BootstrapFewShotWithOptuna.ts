@@ -116,6 +116,9 @@ export class BootstrapFewShotWithOptuna extends BootstrapFewShot {
       const goodTrials = sortedTrials.slice(0, topK);
       const badTrials = sortedTrials.slice(topK);
 
+      // Use 50% of all available demos per trial. This is the starting
+      // point for TPE exploration; mutations in sampleIndices() may grow or
+      // shrink the subset by ±1 around this baseline.
       const numDemos = Math.max(1, Math.floor(maxDemos * 0.5));
       const indices = sampleIndices(goodTrials, badTrials, numDemos);
       const selectedDemos = indices

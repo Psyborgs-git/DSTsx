@@ -1,6 +1,7 @@
 # DSTsx v2 Roadmap
 
 > Features from [DSPy](https://github.com/stanfordnlp/dspy) not yet implemented in DSTsx v1, prioritized for a v2 release.
+> Items marked ✅ are implemented and documented in [README.md](./README.md#v2-apis).
 
 ---
 
@@ -39,13 +40,12 @@ All v2 features must:
 
 ## High Priority
 
-### 1. `TypedPredictor` & `TypedChainOfThought`
+### 1. ✅ `TypedPredictor` & `TypedChainOfThought`
 
 **DSPy equivalent**: `dspy.TypedPredictor`, `dspy.TypedChainOfThought`
+**Status**: ✅ **Implemented** — see [README § TypedPredictor](./README.md#typedpredictor--typedchainofthought)
 
 Structured JSON output with schema validation, powered by [Zod](https://github.com/colinhacks/zod).
-
-**Proposed API:**
 
 ```ts
 import { z } from "zod";
@@ -63,18 +63,12 @@ const result = await qa.forward({ question: "What is 2+2?" });
 console.log(result.typed.confidence); // 0.98
 ```
 
-**Scope:**
-- `TypedPredictor(signature, schema)` — validates every output against the Zod schema.
-- `TypedChainOfThought(signature, schema)` — same + hidden rationale.
-- Auto-inject JSON formatting instructions into the prompt when a schema is present.
-- Re-parse / re-try on validation failure (up to `maxRetries`).
-- Zero-dependency: Zod is an optional peer dependency; plain `JSON.parse` is the fallback.
-
 ---
 
 ### 2. LM Streaming
 
 **DSPy equivalent**: `dspy.streamify` (wraps a program for streaming)
+**Status**: 🗓 **Planned**
 
 Token-level streaming output from all LM adapters.
 
@@ -100,36 +94,25 @@ const final = await qa.forward({ question: "Tell me a story." }); // still works
 
 ---
 
-### 3. Disk-Persistent Response Cache
+### 3. ✅ Disk-Persistent Response Cache
 
 **DSPy equivalent**: `dspy.cache` (SQLite-backed LRU)
+**Status**: ✅ **Implemented** — see [README § Disk-Persistent LM Cache](./README.md#disk-persistent-lm-cache)
 
-Persist LM responses across process restarts to avoid redundant API calls.
-
-**Proposed API:**
+Persist LM responses across process restarts via file-based JSON cache.
 
 ```ts
-settings.configure({
-  lm:       new OpenAI({ model: "gpt-4o" }),
-  cacheDir: "./.dstsx-cache",  // enable disk cache
-});
-// or per-adapter:
 const lm = new OpenAI({ model: "gpt-4o", cacheDir: "./.dstsx-cache" });
 ```
-
-**Scope:**
-- File-based cache (one JSON file per adapter by default; SQLite optional via peer dep).
-- Pluggable `CacheBackend` interface for custom implementations (Redis, etc.).
-- `settings.configure({ cacheDir })` already reserves this option — just needs the backend.
-- LRU eviction policy with configurable `maxSize` and `ttlMs`.
 
 ---
 
 ### 4. Native Tool Calling (OpenAI Functions / Anthropic Tool Use)
 
 **DSPy equivalent**: `dspy.Tool` improvements in DSPy v2
+**Status**: 🗓 **Planned**
 
-Use provider-native structured tool calling instead of text-based ReAct parsing, for more reliable and faster agents.
+Use provider-native structured tool calling instead of text-based ReAct parsing.
 
 **Proposed API:**
 
@@ -140,7 +123,7 @@ const tools: Tool[] = [
   {
     name:        "search",
     description: "Search the web",
-    args: {                          // JSON Schema for the tool args
+    args: {
       type:       "object",
       properties: { query: { type: "string" } },
       required:   ["query"],
@@ -150,7 +133,6 @@ const tools: Tool[] = [
 ];
 
 const agent = new NativeReAct("question -> answer", tools);
-// Uses OpenAI function calling or Anthropic tool use under the hood
 ```
 
 **Scope:**
@@ -162,6 +144,8 @@ const agent = new NativeReAct("question -> answer", tools);
 ---
 
 ### 5. Typedoc API Documentation Site
+
+**Status**: 🗓 **Planned**
 
 Auto-generated API reference site published to GitHub Pages.
 
@@ -175,6 +159,8 @@ Auto-generated API reference site published to GitHub Pages.
 
 ### 6. npm Publish Workflow (GitHub Actions CD)
 
+**Status**: 🗓 **Planned**
+
 Automate package publishing on version bumps.
 
 **Scope:**
@@ -185,84 +171,66 @@ Automate package publishing on version bumps.
 
 ---
 
+### 7. ✅ MCP Integration
+
+**Status**: ✅ **Implemented** — see [README § MCP Integration](./README.md#mcp-integration)
+
+- `MCPToolAdapter` — wrap MCP server tools as DSTsx `Tool` objects for `ReAct`
+- `DSTsxMCPServer` — expose DSTsx modules as MCP tool definitions
+
+#### Live MCP Connection
+
+The current implementation supports test-mode (pre-loaded tools + callHandler).
+A full live connection via SSE/stdio using `@modelcontextprotocol/sdk` is **planned**:
+
+```ts
+// Future: connect to a live MCP server
+const adapter = new MCPToolAdapter({
+  serverUrl: "http://localhost:3000/sse",
+});
+const tools = await adapter.getTools(); // fetches tool list from server
+```
+
+**Scope:**
+- `MCPToolAdapter` live SSE transport using `@modelcontextprotocol/sdk`
+- `DSTsxMCPServer.createStdioServer()` full stdio transport implementation
+
+---
+
 ## Medium Priority
 
-### 7. `BootstrapFewShotWithOptuna`
+### 8. ✅ `BootstrapFewShotWithOptuna`
 
 **DSPy equivalent**: `dspy.BootstrapFewShotWithOptuna`
+**Status**: ✅ **Implemented** — see [README § BootstrapFewShotWithOptuna](./README.md#bootstrapfewshotwithoptuna)
 
-Bayesian optimization (TPE sampler) for demo subset selection, replacing the random search in `BootstrapFewShotWithRandomSearch`.
-
-**Proposed API:**
-
-```ts
-import { BootstrapFewShotWithOptuna } from "dstsx";
-
-const optimizer = new BootstrapFewShotWithOptuna({
-  maxBootstrappedDemos: 4,
-  numTrials:            20,   // Optuna trials
-});
-
-const optimized = await optimizer.compile(program, trainset, metric);
-```
-
-**Scope:**
-- Peer dependency on `optuna-wasm` (WASM port) or a custom TPE implementation.
-- If the peer dep is absent, fall back to `BootstrapFewShotWithRandomSearch`.
+Bayesian optimization (TPE sampler) for demo subset selection, using a built-in
+pure-TypeScript TPE implementation (no external deps).
 
 ---
 
-### 8. `Majority` Module
+### 9. ✅ `majority()` Helper
 
 **DSPy equivalent**: `dspy.majority`
+**Status**: ✅ **Implemented** — see [README § majority() Helper](./README.md#majority-helper)
 
-Majority-vote aggregation across multiple completions, useful as a `reduceFunc` in `BestOfN` and `Ensemble`.
-
-**Proposed API:**
-
-```ts
-import { majority } from "dstsx";
-
-const reducer = majority("answer");        // field to vote on
-const best    = new BestOfN(qa, 5, reducer);
-```
-
-**Scope:**
-- `majority(field)` returns a `(predictions: Prediction[]) => Prediction` reducer.
-- Ties broken by index (first occurrence wins).
+Majority-vote aggregation across multiple completions.
 
 ---
 
-### 9. `Parallel` Module
+### 10. ✅ `Parallel` Module
 
 **DSPy equivalent**: `dspy.Parallel`
+**Status**: ✅ **Implemented** — see [README § Parallel Module](./README.md#parallel-module)
 
 Fan-out/fan-in: run multiple different modules concurrently and collect all their outputs.
 
-**Proposed API:**
-
-```ts
-import { Parallel } from "dstsx";
-
-const pipeline = new Parallel([
-  new Predict("question -> answer"),
-  new ChainOfThought("question -> answer"),
-  new ProgramOfThought("question -> answer"),
-]);
-
-const [pred1, pred2, pred3] = await pipeline.forward({ question: "What is π?" });
-```
-
-**Scope:**
-- `Parallel(modules)` runs all modules with `Promise.all`.
-- Returns `Prediction[]` — one per module.
-- Optional timeout per module (rejects with partial results).
-
 ---
 
-### 10. Multi-modal Support (`dspy.Image`)
+### 11. Multi-modal Support (`dspy.Image`)
 
 **DSPy equivalent**: `dspy.Image`
+**Status**: 🗓 **Planned**
 
 Pass images (and other media) as inputs to vision-capable LMs.
 
@@ -285,12 +253,19 @@ const result = await captioner.forward({
 
 ---
 
-### 11. Worker-Thread Sandbox for `ProgramOfThought`
+### 12. ✅ `Refine` Module
 
-Replace the current `new Function()` executor with a proper Node.js `Worker` thread that:
+**Status**: ✅ **Implemented** — see [README § Refine Module](./README.md#refine-module)
 
-- Has no access to `require`, `process`, filesystem, or network.
-- Can be killed on timeout (true cancellation, not just race rejection).
+Self-critique / iterative refinement loop.
+
+---
+
+### 13. Worker-Thread Sandbox for `ProgramOfThought`
+
+**Status**: 🗓 **Planned**
+
+Replace the current `new Function()` executor with a proper Node.js `Worker` thread.
 
 **Scope:**
 - Optional peer dep on `node:worker_threads` (already available in Node 18+).
@@ -301,11 +276,12 @@ Replace the current `new Function()` executor with a proper Node.js `Worker` thr
 
 ## Low Priority
 
-### 12. `BootstrapFinetune`
+### 14. `BootstrapFinetune`
 
 **DSPy equivalent**: `dspy.BootstrapFinetune`
+**Status**: 🗓 **Planned**
 
-Collect LM traces and export them in fine-tuning format (JSONL) for providers that support it (OpenAI, Together AI, etc.).
+Collect LM traces and export them in fine-tuning format (JSONL) for providers that support it.
 
 **Proposed API:**
 
@@ -317,19 +293,17 @@ const optimizer = new BootstrapFinetune({
   format:     "openai",
 });
 
-// Compiles the student to collect traces; exports them for fine-tuning
 const recipe = await optimizer.compile(program, trainset, metric);
 ```
 
 ---
 
-### 13. `GRPO` Optimizer
+### 15. `GRPO` Optimizer
 
 **DSPy equivalent**: `dspy.GRPO` (Group Relative Policy Optimization)
+**Status**: 🗓 **Planned**
 
-Gradient-style prompt search using reinforcement-learning-inspired reward signals. Requires many LM calls but achieves state-of-the-art optimization quality on complex tasks.
-
-**Proposed API:**
+Gradient-style prompt search using reinforcement-learning-inspired reward signals.
 
 ```ts
 import { GRPO } from "dstsx";
@@ -345,29 +319,30 @@ const optimized = await optimizer.compile(program, trainset, metric);
 
 ---
 
-### 14. `SIMBA` Optimizer
+### 16. `SIMBA` Optimizer
 
 **DSPy equivalent**: `dspy.SIMBA` (Stochastic Introspective Mini-Batch Ascent)
+**Status**: 🗓 **Planned**
 
 A lightweight stochastic search optimizer well-suited for small training sets.
 
 ---
 
-### 15. `AvatarOptimizer`
+### 17. `AvatarOptimizer`
 
 **DSPy equivalent**: `dspy.AvatarOptimizer`
+**Status**: 🗓 **Planned**
 
-Iteratively proposes and evaluates "avatar" personas (role descriptions) for each `Predict` module to improve instruction diversity.
+Iteratively proposes and evaluates "avatar" personas (role descriptions) for each `Predict` module.
 
 ---
 
-### 16. Experiment Tracking Integration
+### 18. Experiment Tracking Integration
 
 **DSPy equivalent**: `dspy.MLflow`
+**Status**: 🗓 **Planned**
 
-Log optimizer runs, metric scores, and demo sets to MLflow or Weights & Biases for experiment comparison.
-
-**Proposed API:**
+Log optimizer runs, metric scores, and demo sets to MLflow or Weights & Biases.
 
 ```ts
 import { BootstrapFewShot, MLflowTracker } from "dstsx";
@@ -382,48 +357,50 @@ const optimizer = new BootstrapFewShot({
 
 ## Stretch / Experimental
 
-### 17. `dspy.Refine` / Gradient-Based Refinement
+### 19. `Refine` / Gradient-Based Refinement
 
-Iteratively improve a prediction by generating a critique and then regenerating — similar to self-refinement / Constitutional AI approaches.
+**Status**: ✅ **Implemented** (self-critique version)
 
-### 18. HTTP Serving
+The v2 `Refine` module implements iterative self-critique. Future: Constitutional AI-style critique, multi-model critique pipelines.
 
-Serialize and serve an optimized program as a REST/gRPC endpoint, enabling deployment without re-running the optimizer.
+### 20. HTTP Serving
 
-### 19. Cross-Language Trace Sharing
+Serialize and serve an optimized program as a REST/gRPC endpoint.
 
-Export / import traces in a format compatible with the Python DSPy library, enabling Python-optimized programs to run in DSTsx and vice-versa.
+### 21. Cross-Language Trace Sharing
 
-### 20. Browser-Native Bundle
+Export / import traces in a format compatible with the Python DSPy library.
 
-A `dstsx/browser` entry-point that:
-- Strips all `node:` built-ins.
-- Replaces `AsyncLocalStorage` with a `Map`-based fallback.
-- Excludes `ProgramOfThought` (no `new Function` in restrictive CSPs).
+### 22. Browser-Native Bundle
+
+A `dstsx/browser` entry-point that strips all `node:` built-ins.
 
 ---
 
 ## Summary Table
 
-| # | Feature | DSPy Symbol | Priority | Effort |
+| # | Feature | DSPy Symbol | Priority | Status |
 |---|---|---|---|---|
-| 1 | TypedPredictor / TypedChainOfThought | `TypedPredictor` | High | Medium |
-| 2 | LM Streaming | `streamify` | High | Medium |
-| 3 | Disk-Persistent Cache | `dspy.cache` | High | Small |
-| 4 | Native Tool Calling | `Tool` (v2) | High | Medium |
-| 5 | Typedoc Site | — | High | Small |
-| 6 | npm Publish Workflow | — | High | Small |
-| 7 | BootstrapFewShotWithOptuna | `BootstrapFewShotWithOptuna` | Medium | Medium |
-| 8 | Majority Module | `majority` | Medium | Small |
-| 9 | Parallel Module | `Parallel` | Medium | Small |
-| 10 | Multi-modal (Image) | `dspy.Image` | Medium | Large |
-| 11 | Worker-Thread ProgramOfThought | — | Medium | Medium |
-| 12 | BootstrapFinetune | `BootstrapFinetune` | Low | Large |
-| 13 | GRPO Optimizer | `GRPO` | Low | Large |
-| 14 | SIMBA Optimizer | `SIMBA` | Low | Large |
-| 15 | AvatarOptimizer | `AvatarOptimizer` | Low | Medium |
-| 16 | Experiment Tracking | `MLflow` | Low | Medium |
-| 17 | Refine / Self-Critique | `Refine` | Stretch | Large |
-| 18 | HTTP Serving | — | Stretch | Large |
-| 19 | Cross-Language Trace Sharing | — | Stretch | Large |
-| 20 | Browser-Native Bundle | — | Stretch | Medium |
+| 1 | TypedPredictor / TypedChainOfThought | `TypedPredictor` | High | ✅ v2 |
+| 2 | LM Streaming | `streamify` | High | 🗓 Planned |
+| 3 | Disk-Persistent Cache | `dspy.cache` | High | ✅ v2 |
+| 4 | Native Tool Calling | `Tool` (v2) | High | 🗓 Planned |
+| 5 | Typedoc Site | — | High | 🗓 Planned |
+| 6 | npm Publish Workflow | — | High | 🗓 Planned |
+| 7 | MCP Integration | — | High | ✅ v2 |
+| 8 | BootstrapFewShotWithOptuna | `BootstrapFewShotWithOptuna` | Medium | ✅ v2 |
+| 9 | Majority Helper | `majority` | Medium | ✅ v2 |
+| 10 | Parallel Module | `Parallel` | Medium | ✅ v2 |
+| 11 | Multi-modal (Image) | `dspy.Image` | Medium | 🗓 Planned |
+| 12 | Refine Module | — | Medium | ✅ v2 |
+| 13 | Worker-Thread ProgramOfThought | — | Medium | 🗓 Planned |
+| 14 | BootstrapFinetune | `BootstrapFinetune` | Low | 🗓 Planned |
+| 15 | GRPO Optimizer | `GRPO` | Low | 🗓 Planned |
+| 16 | SIMBA Optimizer | `SIMBA` | Low | 🗓 Planned |
+| 17 | AvatarOptimizer | `AvatarOptimizer` | Low | 🗓 Planned |
+| 18 | Experiment Tracking | `MLflow` | Low | 🗓 Planned |
+| 19 | HTTP Serving | — | Stretch | 🗓 Planned |
+| 20 | Cross-Language Trace Sharing | — | Stretch | 🗓 Planned |
+| 21 | Browser-Native Bundle | — | Stretch | 🗓 Planned |
+
+---

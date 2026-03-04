@@ -4,7 +4,7 @@
 
 [![npm version](https://img.shields.io/npm/v/dstsx.svg)](https://www.npmjs.com/package/dstsx)
 [![license](https://img.shields.io/npm/l/dstsx.svg)](LICENSE)
-[![tests](https://img.shields.io/badge/tests-160%20passing-brightgreen.svg)](#)
+[![tests](https://img.shields.io/badge/tests-185%20passing-brightgreen.svg)](#)
 
 DSTsx lets you build **typed, composable LM pipelines** in TypeScript and then **optimize** their prompts and few-shot examples automatically—no manual prompt engineering required.
 
@@ -25,8 +25,16 @@ DSTsx lets you build **typed, composable LM pipelines** in TypeScript and then *
    - [Optimizers](#optimizers)
    - [Evaluation](#evaluation)
    - [Assertions & Suggestions](#assertions--suggestions)
-5. [End-to-End Examples](#end-to-end-examples)
-6. [V2 Roadmap](#v2-roadmap)
+5. [V2 APIs](#v2-apis)
+   - [TypedPredictor & TypedChainOfThought](#typedpredictor--typedchainofthought)
+   - [Parallel Module](#parallel-module)
+   - [Refine Module](#refine-module)
+   - [majority() Helper](#majority-helper)
+   - [BootstrapFewShotWithOptuna](#bootstrapfewshotwithoptuna)
+   - [Disk-Persistent LM Cache](#disk-persistent-lm-cache)
+   - [MCP Integration](#mcp-integration)
+6. [End-to-End Examples](#end-to-end-examples)
+7. [V2 Roadmap](#v2-roadmap)
 
 ---
 
@@ -56,6 +64,9 @@ npm install @pinecone-database/pinecone
 npm install chromadb
 npm install @qdrant/js-client-rest
 npm install weaviate-client
+
+# MCP (Model Context Protocol) integration — optional
+npm install @modelcontextprotocol/sdk
 ```
 
 ---
@@ -1156,6 +1167,340 @@ try {
 
 ---
 
+## V2 APIs
+
+The following features are implemented in DSTsx v2.
+
+### `TypedPredictor` & `TypedChainOfThought`
+
+Structured JSON output with optional schema validation. Works without any extra
+dependencies — pass a [Zod](https://github.com/colinhacks/zod) schema for
+runtime validation.
+
+#### `TypedPrediction<T>`
+
+Extends `Prediction` and adds a `.typed` field with the validated/parsed type.
+
+```ts
+import { TypedPredictor } from "dstsx";
+
+// Without schema — output is parsed as plain JSON
+const qa = new TypedPredictor("question -> answer");
+const result = await qa.forward({ question: "What is π?" });
+const typed = result.typed as { answer: string };
+console.log(typed.answer);
+```
+
+With a Zod schema (`npm install zod` first):
+
+```ts
+import { z } from "zod";
+import { TypedPredictor, TypedChainOfThought } from "dstsx";
+
+const AnswerSchema = z.object({
+  answer:     z.string(),
+  confidence: z.number().min(0).max(1),
+  sources:    z.array(z.string()).optional(),
+});
+
+const qa = new TypedPredictor("question -> answer", AnswerSchema, { maxRetries: 3 });
+const result = await qa.forward({ question: "What is 2 + 2?" });
+
+// result.typed is z.infer<typeof AnswerSchema>
+console.log(result.typed.confidence); // 0.98 (number, validated)
+```
+
+`TypedChainOfThought` adds a hidden `rationale` step before producing the JSON:
+
+```ts
+const cot = new TypedChainOfThought("question -> answer", AnswerSchema);
+const result = await cot.forward({ question: "Explain gravity briefly." });
+```
+
+**Constructor options:**
+
+```ts
+new TypedPredictor(signature, schema?, { maxRetries?: number })
+// maxRetries: how many times to retry on parse/schema failure (default: 3)
+```
+
+---
+
+### `Parallel` Module
+
+Runs multiple modules concurrently with `Promise.all` and returns all results.
+
+```ts
+import { Parallel, Predict, ChainOfThought } from "dstsx";
+
+const pipeline = new Parallel([
+  new Predict("question -> answer"),
+  new ChainOfThought("question -> answer"),
+], { timeoutMs: 10_000 }); // optional per-module timeout
+
+// run() returns Prediction[] — one per module
+const [directAnswer, cotAnswer] = await pipeline.run({ question: "What is π?" });
+
+// forward() returns the first prediction (for Module interface compat)
+const first = await pipeline.forward({ question: "What is π?" });
+```
+
+**Constructor:**
+
+```ts
+new Parallel(modules: Module[], options?: { timeoutMs?: number })
+```
+
+| Method | Returns | Description |
+|---|---|---|
+| `run(...args)` | `Promise<Prediction[]>` | All module outputs in order |
+| `forward(...args)` | `Promise<Prediction>` | First module output (Module compat) |
+
+---
+
+### `Refine` Module
+
+Self-critique / iterative refinement loop. After each inner module run, a built-in
+critic predictor evaluates the output and feeds improvement suggestions back.
+
+```ts
+import { Refine, Predict } from "dstsx";
+
+const writer = new Predict("topic, feedback? -> essay");
+
+const refined = new Refine(writer, {
+  maxRefinements: 2,
+  feedbackField:  "feedback",      // injected field name for critique
+  stopCondition:  (pred) =>
+    String(pred.get("essay")).length > 500, // stop early if long enough
+});
+
+const result = await refined.forward({ topic: "Climate change" });
+console.log(result.get("essay"));
+```
+
+**Constructor:**
+
+```ts
+new Refine(inner: Module, options?: {
+  maxRefinements?: number;                     // default: 2
+  feedbackField?:  string;                     // default: "feedback"
+  stopCondition?:  (p: Prediction) => boolean; // optional early-exit check
+})
+```
+
+The critic calls `Predict("output -> critique, is_satisfactory")`.
+If `is_satisfactory` is `"yes"` or `"true"`, refinement stops early.
+
+---
+
+### `majority()` Helper
+
+Votes across multiple `Prediction` instances by the most common value for a given
+field. Useful as a `reduceFunc` in `BestOfN` and `Ensemble`.
+
+```ts
+import { majority, BestOfN, Predict } from "dstsx";
+
+const qa = new Predict("question -> answer");
+
+// Run 5 times and pick the most common answer
+const voted = new BestOfN(qa, 5, majority("answer"));
+const result = await voted.forward({ question: "What color is the sky?" });
+console.log(result.get("answer")); // most frequently returned answer
+```
+
+```ts
+// Standalone usage
+import { majority } from "dstsx";
+
+const reducer = majority("answer");
+const best = reducer([pred1, pred2, pred3]); // Prediction with the most common "answer"
+```
+
+---
+
+### `BootstrapFewShotWithOptuna`
+
+Extends `BootstrapFewShot` with a pure-TypeScript TPE (Tree-structured Parzen
+Estimator) that searches demo subsets across `numTrials` iterations, learning
+from past trial outcomes to find the best configuration — no external
+dependencies required.
+
+```ts
+import { BootstrapFewShotWithOptuna } from "dstsx";
+
+const optimizer = new BootstrapFewShotWithOptuna({
+  maxBootstrappedDemos: 4,
+  numTrials:            20,        // number of TPE search trials
+  valset:               valExamples, // optional held-out validation set
+});
+
+const optimized = await optimizer.compile(program, trainset, metric);
+```
+
+**How it works:** First runs `BootstrapFewShot` to collect candidate demos. Then
+runs `numTrials` iterations where each trial samples a demo subset using TPE:
+the top 25 % of past trials form the "good" pool, sampled with 70 % probability,
+biased mutations towards the best configurations found so far.
+
+---
+
+### Disk-Persistent LM Cache
+
+LM adapters now accept a `cacheDir` option. Responses are persisted as JSON
+files named by a SHA-256 hash of the prompt, surviving process restarts.
+
+```ts
+import { OpenAI, MockLM } from "dstsx";
+
+// Any LM adapter — just pass cacheDir
+const lm = new OpenAI({
+  model:    "gpt-4o",
+  cacheDir: "./.dstsx-cache", // optional disk persistence
+});
+
+// Or with MockLM for testing disk cache behavior
+const mockLm = new MockLM({ "q": "a" }, undefined, { cacheDir: "/tmp/test-cache" });
+```
+
+The disk cache is checked **after** the in-memory LRU cache. On a hit the
+response is also written back into the in-memory cache. TTL and max-size
+eviction apply to both layers.
+
+`DiskCache` is also exported for custom use:
+
+```ts
+import { DiskCache } from "dstsx";
+
+const cache = new DiskCache(
+  "./.dstsx-cache",  // directory (created automatically)
+  500,               // maxSize (files); default 500
+  3_600_000,         // ttlMs; default undefined (no TTL)
+);
+
+cache.set("myKey", lmResponse);
+const cached = cache.get("myKey");
+cache.clear(); // delete all cache files
+```
+
+---
+
+### MCP Integration
+
+DSTsx integrates with the [Model Context Protocol](https://modelcontextprotocol.io/)
+(MCP) in two directions:
+
+1. **Use MCP servers as tools** inside ReAct agents (`MCPToolAdapter`)
+2. **Expose DSTsx modules as MCP tools** (`DSTsxMCPServer`)
+
+Optional peer dependency: `npm install @modelcontextprotocol/sdk`
+
+---
+
+#### `MCPToolAdapter` — consume MCP servers in ReAct
+
+Wraps the tools from an MCP server as DSTsx `Tool` objects for use with `ReAct`.
+
+```ts
+import { MCPToolAdapter, ReAct } from "dstsx";
+
+const adapter = new MCPToolAdapter({
+  // Test mode: supply tool definitions + call handler without a live server
+  tools: [
+    {
+      name:        "weather",
+      description: "Get current weather for a city",
+      inputSchema: {
+        type:       "object",
+        properties: { city: { type: "string" } },
+        required:   ["city"],
+      },
+    },
+  ],
+  callHandler: async (name, args) => {
+    if (name === "weather") return `Sunny in ${args["city"] as string}`;
+    throw new Error(`Unknown tool: ${name}`);
+  },
+});
+
+const tools = await adapter.getTools();
+const agent = new ReAct("question -> answer", tools, 5);
+const result = await agent.forward({ question: "What is the weather in Paris?" });
+```
+
+When `@modelcontextprotocol/sdk` is installed, a live SSE/stdio connection can
+be established by setting `serverUrl` (full live-connection implementation is in
+the [v2 roadmap](./V2_ROADMAP.md#live-mcp-connection)).
+
+---
+
+#### `DSTsxMCPServer` — expose DSTsx modules as MCP tools
+
+Register any DSTsx module and serve it as an MCP-compatible tool.
+
+```ts
+import { DSTsxMCPServer, ChainOfThought, settings, OpenAI } from "dstsx";
+
+settings.configure({ lm: new OpenAI({ model: "gpt-4o" }) });
+
+const qa = new ChainOfThought("context, question -> answer");
+
+const server = new DSTsxMCPServer();
+server.registerModule(
+  "qa",                                   // tool name
+  "Answer questions using chain-of-thought reasoning",
+  qa,
+  ["context", "question"],               // input field names
+);
+
+// List tools (for MCP handshake)
+const toolDefs = server.getToolDefinitions();
+/*
+[{
+  name: "qa",
+  description: "...",
+  inputSchema: { type: "object", properties: { context: { type: "string" }, ... } },
+}]
+*/
+
+// Handle a tool call
+const result = await server.callTool("qa", {
+  context:  "Paris is the capital of France.",
+  question: "What is the capital of France?",
+});
+// result is the Prediction.toJSON() object
+
+// With @modelcontextprotocol/sdk installed, launch a stdio MCP server:
+// await server.createStdioServer();
+```
+
+**MCPTool type:**
+
+```ts
+interface MCPTool {
+  name:        string;
+  description: string;
+  inputSchema: {
+    type:       "object";
+    properties: Record<string, { type: string; description?: string }>;
+    required?:  string[];
+  };
+  handler: (inputs: Record<string, unknown>) => Promise<unknown>;
+}
+```
+
+**`DSTsxMCPServer` methods:**
+
+| Method | Description |
+|---|---|
+| `registerModule(name, desc, module, fields)` | Register a module as an MCP tool |
+| `getToolDefinitions()` | Return all registered `MCPTool[]` |
+| `callTool(name, inputs)` | Invoke a registered tool by name |
+| `createStdioServer()` | Start an MCP stdio server (requires SDK) |
+
+---
+
 ## End-to-End Examples
 
 ### 1. Simple Q&A
@@ -1324,26 +1669,27 @@ app.listen(3000);
 
 ## V2 Roadmap
 
-The following DSPy features are not yet implemented in DSTsx and are candidates for a v2 release.
-See [V2_ROADMAP.md](./V2_ROADMAP.md) for the full specification and prioritized list.
+The following features are ✅ **implemented in v2**. Remaining items are tracked in [V2_ROADMAP.md](./V2_ROADMAP.md).
 
-| Feature | DSPy Equivalent | Priority |
+| Feature | DSPy Equivalent | Status |
 |---|---|---|
-| **`TypedPredictor`** — Zod/JSON-schema structured output | `dspy.TypedPredictor`, `dspy.TypedChainOfThought` | High |
-| **Streaming** — token-level streaming from LM adapters | `dspy.streamify` | High |
-| **Disk-persistent cache** — file-based LRU cache | `dspy.cache` (SQLite) | High |
-| **`BootstrapFewShotWithOptuna`** — Bayesian demo search | `dspy.BootstrapFewShotWithOptuna` | Medium |
-| **Native tool calling** — OpenAI function calling / Anthropic tool use | `dspy.Tool` (v2) | High |
-| **`Majority`** module — majority voting across completions | `dspy.majority` | Medium |
-| **`Parallel`** module — fan-out / fan-in concurrency | `dspy.Parallel` | Medium |
-| **Multi-modal** — image + audio inputs | `dspy.Image` | Medium |
-| **`BootstrapFinetune`** — export traces for fine-tuning | `dspy.BootstrapFinetune` | Low |
-| **`GRPO` / `SIMBA` optimizers** — gradient-based search | `dspy.GRPO`, `dspy.SIMBA` | Low |
-| **`AvatarOptimizer`** — role-based prompt optimization | `dspy.AvatarOptimizer` | Low |
-| **Experiment tracking** — MLflow / W&B integration | `dspy.MLflow` | Low |
-| **Browser sandbox** — Worker-thread `ProgramOfThought` executor | — | Medium |
-| **Typedoc site** — auto-generated API documentation | — | High |
-| **npm publish workflow** — GitHub Actions CD pipeline | — | High |
+| **`TypedPredictor`** — JSON-schema + optional Zod validation | `dspy.TypedPredictor`, `dspy.TypedChainOfThought` | ✅ v2 |
+| **`Parallel`** module — fan-out / fan-in concurrency | `dspy.Parallel` | ✅ v2 |
+| **`Refine`** module — self-critique loop | — | ✅ v2 |
+| **`majority()`** helper — vote across Predictions | `dspy.majority` | ✅ v2 |
+| **`BootstrapFewShotWithOptuna`** — TPE Bayesian search | `dspy.BootstrapFewShotWithOptuna` | ✅ v2 |
+| **Disk-persistent LM cache** — file-based LRU | `dspy.cache` | ✅ v2 |
+| **MCP Integration** — `MCPToolAdapter` + `DSTsxMCPServer` | — | ✅ v2 |
+| **Streaming** — token-level streaming from LM adapters | `dspy.streamify` | 🗓 Planned |
+| **Native tool calling** — OpenAI functions / Anthropic tool use | `dspy.Tool` (v2) | 🗓 Planned |
+| **Multi-modal** — image + audio inputs | `dspy.Image` | 🗓 Planned |
+| **`BootstrapFinetune`** — export traces for fine-tuning | `dspy.BootstrapFinetune` | 🗓 Planned |
+| **`GRPO` / `SIMBA` optimizers** — gradient-based search | `dspy.GRPO`, `dspy.SIMBA` | 🗓 Planned |
+| **`AvatarOptimizer`** — role-based prompt optimization | `dspy.AvatarOptimizer` | 🗓 Planned |
+| **Experiment tracking** — MLflow / W&B integration | `dspy.MLflow` | 🗓 Planned |
+| **Browser sandbox** — Worker-thread `ProgramOfThought` executor | — | 🗓 Planned |
+| **Typedoc site** — auto-generated API documentation | — | 🗓 Planned |
+| **npm publish workflow** — GitHub Actions CD pipeline | — | 🗓 Planned |
 
 ---
 

@@ -76,6 +76,8 @@ export class DiskCache {
   }
 
   #pathFor(key: string): string {
+    // 16 hex chars = 64 bits of the SHA-256 digest. The collision probability
+    // over 10 M distinct prompts is ~2.7e-9, acceptable for a local LM cache.
     const hash = createHash("sha256").update(key).digest("hex").slice(0, 16);
     return join(this.#cacheDir, `${hash}.json`);
   }
