@@ -1,0 +1,42 @@
+/** A single chat message (role + content). */
+export interface Message {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+/** Configuration passed to every LM call. */
+export interface LMCallConfig {
+  /** Model identifier (e.g. "gpt-4o", "claude-3-opus-20240229"). */
+  model?: string;
+  /** Sampling temperature (0–2). */
+  temperature?: number;
+  /** Maximum tokens to generate. */
+  maxTokens?: number;
+  /** Stop sequences. */
+  stop?: string[];
+  /** Number of completions to generate (default 1). */
+  n?: number;
+  /**
+   * Optional cache key override.  When provided the cache uses this key
+   * instead of hashing the prompt.
+   */
+  cacheKey?: string;
+  /** Pass-through extra options to the underlying provider SDK. */
+  extra?: Record<string, unknown>;
+}
+
+/** The response returned by an LM adapter. */
+export interface LMResponse {
+  /** The primary (first) completion text. */
+  text: string;
+  /** All completion texts when `n > 1`. */
+  texts: string[];
+  /** Token usage (null when the provider does not report it). */
+  usage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  } | null;
+  /** Raw provider response (opaque). */
+  raw: unknown;
+}
