@@ -53,6 +53,11 @@ export class BootstrapFewShotWithOptuna extends BootstrapFewShot {
     const evalSet = this.#valset ?? trainset;
     const maxDemos = Math.max(1, allDemos.length);
 
+    /** Fraction of trials to consider "good" in TPE sampling. */
+    const TOP_TRIALS_FRACTION = 0.25;
+    /** Probability of sampling from the "good" trials pool vs random. */
+    const GOOD_TRIAL_SAMPLING_PROBABILITY = 0.7;
+
     interface Trial {
       indices: number[];
       score: number;
@@ -81,7 +86,7 @@ export class BootstrapFewShotWithOptuna extends BootstrapFewShot {
       badTrials: Trial[],
       n: number,
     ): number[] => {
-      const useGood = goodTrials.length > 0 && Math.random() < 0.7;
+      const useGood = goodTrials.length > 0 && Math.random() < GOOD_TRIAL_SAMPLING_PROBABILITY;
       const pool =
         useGood ? goodTrials : badTrials.length > 0 ? badTrials : null;
 
@@ -107,7 +112,7 @@ export class BootstrapFewShotWithOptuna extends BootstrapFewShot {
 
     for (let t = 0; t < this.#numTrials; t++) {
       const sortedTrials = [...trials].sort((a, b) => b.score - a.score);
-      const topK = Math.max(1, Math.floor(sortedTrials.length * 0.25));
+      const topK = Math.max(1, Math.floor(sortedTrials.length * TOP_TRIALS_FRACTION));
       const goodTrials = sortedTrials.slice(0, topK);
       const badTrials = sortedTrials.slice(topK);
 
