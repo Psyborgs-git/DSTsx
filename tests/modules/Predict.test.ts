@@ -32,19 +32,11 @@ describe("Predict", () => {
   });
 
   it("includes demos in the prompt", async () => {
-    let capturedPrompt = "";
-    const capturingLM = new MockLM({});
-    capturingLM.addResponse = (prompt: string) => {
-      capturedPrompt = prompt;
-    };
-
-    // Simpler: just check demos are serialised
     const predict = new Predict("question -> answer");
     predict.demos = [new Example({ question: "2+2?", answer: "4" })];
 
     settings.configure({ lm: new MockLM({}, "result") });
     await predict.forward({ question: "1+1?" });
-    void capturedPrompt; // used to avoid unused warning
     expect(predict.demos).toHaveLength(1);
   });
 

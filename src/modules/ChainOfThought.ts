@@ -1,6 +1,7 @@
 import { Predict } from "./Predict.js";
 import { Prediction } from "../primitives/index.js";
-import { Signature, OutputField } from "../signatures/index.js";
+import { Signature } from "../signatures/index.js";
+import type { FieldMeta } from "../signatures/index.js";
 
 /**
  * Chain-of-Thought module — extends {@link Predict} by prepending a hidden
@@ -31,7 +32,7 @@ export class ChainOfThought extends Predict {
 
     // Ensure rationale is the FIRST output field.
     const reordered = new Signature({
-      inputs: rationaleSig.inputs as Map<string, ReturnType<typeof OutputField>>,
+      inputs: rationaleSig.inputs as Map<string, FieldMeta>,
       outputs: new Map([
         ["rationale", rationaleSig.outputs.get("rationale")!],
         ...rationaleSig.outputs,

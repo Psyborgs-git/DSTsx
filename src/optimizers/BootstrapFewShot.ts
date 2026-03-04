@@ -2,6 +2,7 @@ import { Optimizer } from "./Optimizer.js";
 import type { Module } from "../modules/index.js";
 import { Predict } from "../modules/index.js";
 import type { Example } from "../primitives/index.js";
+import { Prediction } from "../primitives/index.js";
 import type { Metric } from "../evaluate/index.js";
 
 /** Options for BootstrapFewShot. */
@@ -42,7 +43,7 @@ export class BootstrapFewShot extends Optimizer {
 
       try {
         const inputs = example.toDict() as Record<string, unknown>;
-        const prediction = await (teacher.forward as (i: Record<string, unknown>) => Promise<import("../primitives/index.js").Prediction>)(inputs);
+        const prediction = await (teacher.forward as (i: Record<string, unknown>) => Promise<Prediction>)(inputs);
         const raw = metric(example, prediction);
         const passed = typeof raw === "boolean" ? raw : raw > 0;
         if (passed) {

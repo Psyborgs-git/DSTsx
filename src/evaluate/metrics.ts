@@ -1,4 +1,5 @@
-import type { Example, Prediction } from "../primitives/index.js";
+import { Prediction } from "../primitives/index.js";
+import type { Example } from "../primitives/index.js";
 import type { Metric } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -138,8 +139,6 @@ function lcs(a: string[], b: string[]): number {
   }
   return dp[m]![n]!;
 }
-
-import { Prediction } from "../primitives/index.js";
 
 function buildPrediction(data: Record<string, unknown>): Prediction {
   return new Prediction(data);

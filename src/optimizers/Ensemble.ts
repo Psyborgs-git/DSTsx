@@ -27,9 +27,7 @@ export class EnsembleOptimizer extends Optimizer {
     this.#reduceFunc = options.reduceFunc;
   }
 
-  async compile(student: Module, trainset: Example[], metric: Metric): Promise<Module> {
-    void trainset; // Not used — caller provides pre-trained programs.
-    void metric;
+  async compile(student: Module, _trainset: Example[], _metric: Metric): Promise<Module> {
 
     const reduceFunc = this.#reduceFunc;
 
