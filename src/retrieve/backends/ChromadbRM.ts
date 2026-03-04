@@ -40,6 +40,6 @@ export class ChromadbRM extends Retriever {
       nResults: k,
     });
 
-    return (results.documents?.[0] ?? []).filter((d): d is string => d !== null);
+    return (results.documents?.[0] ?? []).filter((d: unknown): d is string => d !== null);
   }
 }

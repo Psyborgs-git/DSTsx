@@ -30,7 +30,7 @@ export class ChainOfThoughtWithHint extends ChainOfThought {
     Object.assign(this, { signature: extendedSig });
   }
 
-  async forward(inputs: Record<string, unknown>): Promise<Prediction> {
+  override async forward(inputs: Record<string, unknown>): Promise<Prediction> {
     return super.forward(inputs);
   }
 }

@@ -58,7 +58,7 @@ export abstract class LM {
   }
 
   /** Accumulated token usage across all (non-cached) calls. */
-  get tokenUsage(): Readonly<typeof this.#tokenUsage> {
+  get tokenUsage(): Readonly<{ promptTokens: number; completionTokens: number; totalTokens: number }> {
     return { ...this.#tokenUsage };
   }
 
