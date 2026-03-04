@@ -70,4 +70,28 @@ export abstract class Module {
       }
     }
   }
+
+  /**
+   * Create a deep clone of this module.
+   *
+   * Returns a new module with the same prototype.  All sub-{@link Module}
+   * properties are recursively cloned so that mutating the clone's learnable
+   * parameters (e.g. `Predict.demos`) does **not** affect the original.
+   * Array properties are shallow-copied (their elements are not cloned).
+   * All other properties are copied by reference.
+   */
+  clone(): this {
+    const cloned = Object.create(Object.getPrototypeOf(this) as object) as this;
+    for (const key of Object.keys(this)) {
+      const value = (this as Record<string, unknown>)[key];
+      if (value instanceof Module) {
+        (cloned as Record<string, unknown>)[key] = value.clone();
+      } else if (Array.isArray(value)) {
+        (cloned as Record<string, unknown>)[key] = [...value];
+      } else {
+        (cloned as Record<string, unknown>)[key] = value;
+      }
+    }
+    return cloned;
+  }
 }

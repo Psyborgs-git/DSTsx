@@ -4,39 +4,52 @@ import { Retriever } from "../Retriever.js";
 export interface FaissRMOptions {
   /** Array of passage strings (the corpus). */
   passages: string[];
-  /** Pre-computed embeddings (one per passage). If omitted, an `embeddingFn` is required. */
+  /**
+   * Pre-computed embeddings (one per passage, in the same order as `passages`).
+   * When omitted, embeddings are computed lazily on the first `retrieve()` call
+   * using `embeddingFn` and cached for subsequent calls.
+   */
   embeddings?: number[][];
-  embeddingFn?: (text: string) => Promise<number[]>;
+  /**
+   * Function that maps a text string to a dense embedding vector.
+   * Required for computing the query embedding (and passage embeddings when
+   * `embeddings` is not pre-supplied).
+   */
+  embeddingFn: (text: string) => Promise<number[]>;
 }
 
 /**
- * In-process FAISS-style retriever using cosine similarity over pre-computed
+ * In-process FAISS-style retriever using cosine similarity over dense
  * embeddings.  No external server required.
  *
  * For large corpora, consider using the `faiss-node` package instead.
  */
 export class FaissRM extends Retriever {
   readonly #passages: string[];
-  readonly #embeddings: number[][] | undefined;
-  readonly #embeddingFn: ((text: string) => Promise<number[]>) | undefined;
+  readonly #precomputedEmbeddings: number[][] | undefined;
+  readonly #embeddingFn: (text: string) => Promise<number[]>;
+  /** Lazily populated passage-embedding cache. */
+  #cachedEmbeddings: number[][] | undefined;
 
   constructor(options: FaissRMOptions) {
     super();
     this.#passages = options.passages;
-    this.#embeddings = options.embeddings;
+    this.#precomputedEmbeddings = options.embeddings;
     this.#embeddingFn = options.embeddingFn;
   }
 
   async retrieve(query: string, k: number): Promise<string[]> {
-    const embeddingFn = this.#embeddingFn;
-    if (!this.#embeddings && !embeddingFn) {
-      throw new Error("FaissRM requires either pre-computed embeddings or an embeddingFn.");
+    // Always use embeddingFn for the query so we get a meaningful embedding.
+    const queryEmbedding = await this.#embeddingFn(query);
+
+    // Passage embeddings: use pre-computed ones, or compute & cache lazily.
+    if (!this.#cachedEmbeddings) {
+      this.#cachedEmbeddings = this.#precomputedEmbeddings
+        ? [...this.#precomputedEmbeddings]
+        : await Promise.all(this.#passages.map((p) => this.#embeddingFn(p)));
     }
 
-    const queryEmbedding = embeddingFn ? await embeddingFn(query) : this.#embeddings![0]!;
-    const embeddings = this.#embeddings ?? [];
-
-    const scored = embeddings.map((emb, i) => ({
+    const scored = this.#cachedEmbeddings.map((emb, i) => ({
       index: i,
       score: this.#cosineSimilarity(queryEmbedding, emb),
     }));

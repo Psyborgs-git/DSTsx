@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { LM } from "../lm/index.js";
 import type { LMCallConfig } from "../lm/types.js";
 import type { Retriever } from "../retrieve/index.js";
@@ -17,6 +18,13 @@ export interface SettingsOptions {
 }
 
 /**
+ * Per-async-context storage.  Each async call tree started via
+ * {@link Settings.context} gets its own isolated snapshot of settings.
+ * Concurrent requests never see each other's overrides.
+ */
+const contextStore = new AsyncLocalStorage<SettingsOptions>();
+
+/**
  * Global settings singleton for DSTsx.
  *
  * Configure the default LM and retriever before using any modules:
@@ -27,7 +35,9 @@ export interface SettingsOptions {
  * settings.configure({ lm: new OpenAI({ model: "gpt-4o" }) });
  * ```
  *
- * Use {@link Settings.context} for per-request overrides in server environments:
+ * Use {@link Settings.context} for per-request overrides in server environments.
+ * Each invocation gets an isolated async context via `AsyncLocalStorage`, so
+ * concurrent overlapping requests never interfere with each other:
  * ```ts
  * await settings.context({ lm: perRequestLM }, async () => {
  *   return program.forward({ question });
@@ -35,7 +45,16 @@ export interface SettingsOptions {
  * ```
  */
 export class Settings {
-  #current: SettingsOptions = {};
+  #global: SettingsOptions = {};
+
+  // ---------------------------------------------------------------------------
+  // Effective settings: async-context overrides take precedence over globals.
+  // ---------------------------------------------------------------------------
+
+  get #current(): SettingsOptions {
+    const ctx = contextStore.getStore();
+    return ctx !== undefined ? { ...this.#global, ...ctx } : this.#global;
+  }
 
   // ---------------------------------------------------------------------------
   // Accessors
@@ -66,44 +85,45 @@ export class Settings {
   // ---------------------------------------------------------------------------
 
   /**
-   * Merge `options` into the current settings.  Existing keys are overwritten;
-   * omitted keys are unchanged.
+   * Merge `options` into the global settings.  Existing keys are overwritten;
+   * omitted keys are unchanged.  This does NOT affect currently running
+   * {@link Settings.context} scopes.
    */
   configure(options: SettingsOptions): void {
-    this.#current = { ...this.#current, ...options };
+    this.#global = { ...this.#global, ...options };
   }
 
   /**
-   * Reset all settings to their defaults.
+   * Reset all global settings to their defaults.
    */
   reset(): void {
-    this.#current = {};
+    this.#global = {};
   }
 
   /**
-   * Return a deep-frozen snapshot of the current settings (safe for logging).
+   * Return a deep-frozen snapshot of the currently effective settings
+   * (respects any active async-context overrides).
    */
   inspect(): Readonly<SettingsOptions> {
     return Object.freeze({ ...this.#current });
   }
 
   /**
-   * Run `fn` inside a temporary override context.
+   * Run `fn` inside an async-context-local settings scope.
    *
-   * The override is applied only for the duration of the async call and
-   * restored afterward.  Useful for per-request LM overrides in servers.
+   * The `overrides` are merged on top of the current global settings and
+   * stored in an `AsyncLocalStorage` context.  Concurrent calls each get
+   * their own isolated snapshot — they never overwrite each other's settings.
    *
-   * Note: Uses a simple save/restore pattern.  For concurrent request isolation
-   * use the `AsyncLocalStorage`-based `withContext` pattern in a future release.
+   * @example
+   * ```ts
+   * // In an Express/Fastify handler:
+   * await settings.context({ lm: perRequestLM }, () => program.forward(inputs));
+   * ```
    */
   async context<T>(overrides: SettingsOptions, fn: () => Promise<T>): Promise<T> {
-    const saved = { ...this.#current };
-    this.configure(overrides);
-    try {
-      return await fn();
-    } finally {
-      this.#current = saved;
-    }
+    const merged = { ...this.#global, ...overrides };
+    return contextStore.run(merged, fn);
   }
 }
 

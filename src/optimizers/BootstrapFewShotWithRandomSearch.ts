@@ -47,8 +47,7 @@ export class BootstrapFewShotWithRandomSearch extends BootstrapFewShot {
     let bestModule: Module = bootstrapped;
 
     for (let i = 0; i < this.#numCandidates; i++) {
-      const candidate = Object.create(Object.getPrototypeOf(bootstrapped) as object) as Module;
-      Object.assign(candidate, bootstrapped);
+      const candidate = bootstrapped.clone();
 
       const shuffle = [...allDemos].sort(() => Math.random() - 0.5);
       const k = Math.floor(Math.random() * allDemos.length) + 1;

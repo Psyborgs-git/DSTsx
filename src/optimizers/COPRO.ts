@@ -50,8 +50,7 @@ export class COPRO extends Optimizer {
         }
 
         for (const candidate of candidates) {
-          const clone = Object.create(Object.getPrototypeOf(best) as object) as Module;
-          Object.assign(clone, best);
+          const clone = best.clone();
 
           for (const [n, p] of clone.namedPredictors()) {
             if (n === name && p instanceof Predict) {

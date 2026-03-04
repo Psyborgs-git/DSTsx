@@ -55,10 +55,11 @@ export class KNNFewShot extends Optimizer {
       }),
     );
 
-    const optimized = Object.create(Object.getPrototypeOf(student) as object) as Module;
-    Object.assign(optimized, student);
+    const optimized = student.clone();
 
     // Wrap each Predict.forward to inject KNN demos at call time.
+    // Because `optimized` is a deep clone, wrapping forward here does not
+    // affect the original `student`.
     for (const [, predictor] of optimized.namedPredictors()) {
       if (!(predictor instanceof Predict)) continue;
 

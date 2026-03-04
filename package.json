@@ -37,6 +37,7 @@
   ],
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^25.3.3",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",
@@ -47,28 +48,49 @@
     "vitest": "^1.5.0"
   },
   "peerDependencies": {
-    "openai": ">=4",
     "@anthropic-ai/sdk": ">=0.21",
-    "cohere-ai": ">=7",
     "@google/generative-ai": ">=0.7",
     "@pinecone-database/pinecone": ">=2",
-    "weaviate-client": ">=3",
+    "@qdrant/js-client-rest": ">=1",
     "chromadb": ">=1",
-    "@qdrant/js-client-rest": ">=1"
+    "cohere-ai": ">=7",
+    "openai": ">=4",
+    "weaviate-client": ">=3"
   },
   "peerDependenciesMeta": {
-    "openai": { "optional": true },
-    "@anthropic-ai/sdk": { "optional": true },
-    "cohere-ai": { "optional": true },
-    "@google/generative-ai": { "optional": true },
-    "@pinecone-database/pinecone": { "optional": true },
-    "weaviate-client": { "optional": true },
-    "chromadb": { "optional": true },
-    "@qdrant/js-client-rest": { "optional": true }
+    "openai": {
+      "optional": true
+    },
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "cohere-ai": {
+      "optional": true
+    },
+    "@google/generative-ai": {
+      "optional": true
+    },
+    "@pinecone-database/pinecone": {
+      "optional": true
+    },
+    "weaviate-client": {
+      "optional": true
+    },
+    "chromadb": {
+      "optional": true
+    },
+    "@qdrant/js-client-rest": {
+      "optional": true
+    }
   },
   "tsup": {
-    "entry": ["src/index.ts"],
-    "format": ["esm", "cjs"],
+    "entry": [
+      "src/index.ts"
+    ],
+    "format": [
+      "esm",
+      "cjs"
+    ],
     "dts": true,
     "sourcemap": true,
     "clean": true,

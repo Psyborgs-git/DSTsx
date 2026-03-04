@@ -54,8 +54,7 @@ export class BootstrapFewShot extends Optimizer {
       }
     }
 
-    const optimized = Object.create(Object.getPrototypeOf(student) as object) as Module;
-    Object.assign(optimized, student);
+    const optimized = student.clone();
 
     for (const [, predictor] of optimized.namedPredictors()) {
       if (predictor instanceof Predict) {
