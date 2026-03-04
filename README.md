@@ -4,7 +4,7 @@
 
 [![npm version](https://img.shields.io/npm/v/dstsx.svg)](https://www.npmjs.com/package/dstsx)
 [![license](https://img.shields.io/npm/l/dstsx.svg)](LICENSE)
-[![tests](https://img.shields.io/badge/tests-185%20passing-brightgreen.svg)](#)
+[![tests](https://img.shields.io/badge/tests-218%20passing-brightgreen.svg)](#)
 
 DSTsx lets you build **typed, composable LM pipelines** in TypeScript and then **optimize** their prompts and few-shot examples automatically—no manual prompt engineering required.
 
@@ -33,6 +33,15 @@ DSTsx lets you build **typed, composable LM pipelines** in TypeScript and then *
    - [BootstrapFewShotWithOptuna](#bootstrapfewshotwithoptuna)
    - [Disk-Persistent LM Cache](#disk-persistent-lm-cache)
    - [MCP Integration](#mcp-integration)
+   - [LM Streaming](#lm-streaming)
+   - [NativeReAct](#nativereact)
+   - [Image — Multi-modal Support](#image--multi-modal-support)
+   - [BootstrapFinetune](#bootstrapfinetune)
+   - [GRPO Optimizer](#grpo-optimizer)
+   - [SIMBA Optimizer](#simba-optimizer)
+   - [AvatarOptimizer](#avataroptimizer)
+   - [Experiment Tracking](#experiment-tracking)
+   - [Worker-Thread ProgramOfThought](#worker-thread-programofthought)
 6. [End-to-End Examples](#end-to-end-examples)
 7. [V2 Roadmap](#v2-roadmap)
 
@@ -1501,6 +1510,363 @@ interface MCPTool {
 
 ---
 
+### LM Streaming
+
+Stream LM responses token by token using `AsyncGenerator`. All adapters provide
+a default fallback that returns the full response as a single chunk. Real
+streaming is implemented for `OpenAI` and `Anthropic`.
+
+```ts
+import { settings, OpenAI, Predict } from "dstsx";
+
+settings.configure({ lm: new OpenAI({ model: "gpt-4o" }) });
+
+const qa = new Predict("question -> answer");
+
+// Stream via Predict
+for await (const chunk of qa.stream({ question: "Tell me a story." })) {
+  process.stdout.write(chunk.delta);
+  if (chunk.done) break;
+}
+
+// Stream directly from LM
+const lm = new OpenAI({ model: "gpt-4o" });
+for await (const chunk of lm.stream("What is TypeScript?")) {
+  process.stdout.write(chunk.delta);
+}
+```
+
+**`StreamChunk` type:**
+
+```ts
+interface StreamChunk {
+  delta: string;  // Incremental text
+  done:  boolean; // True on the final chunk
+  raw:   unknown; // Raw provider chunk
+}
+```
+
+| Method | Available on | Description |
+|---|---|---|
+| `lm.stream(prompt, config?)` | `LM` (all adapters) | Stream from LM (fallback on unsupported) |
+| `predict.stream(inputs)` | `Predict` | Stream from a Predict module |
+
+---
+
+### NativeReAct
+
+A `ReAct` variant that uses provider-native function/tool calling (OpenAI tools
+API, Anthropic tool_use) instead of text-based action parsing. Falls back to
+text format for adapters that don't support native calling.
+
+```ts
+import { NativeReAct, settings, OpenAI } from "dstsx";
+import type { Tool } from "dstsx";
+
+settings.configure({ lm: new OpenAI({ model: "gpt-4o" }) });
+
+const tools: Tool[] = [
+  {
+    name:        "search",
+    description: "Search the web for information",
+    fn: async (args) => {
+      const { query } = JSON.parse(args) as { query: string };
+      return `Results for: ${query}`;
+    },
+  },
+];
+
+const agent = new NativeReAct("question -> answer", tools, 5);
+const result = await agent.forward({ question: "What is the capital of France?" });
+console.log(result.get("answer")); // "Paris"
+```
+
+**Constructor:**
+
+```ts
+new NativeReAct(
+  signature: string,
+  tools: Tool[],
+  maxIter?: number,  // default: 5
+)
+```
+
+NativeReAct wraps tool calls using the OpenAI `tools` format (an array of
+`{ type: "function", function: { name, description, parameters } }` objects),
+which is also accepted by other compatible providers.
+
+---
+
+### Image — Multi-modal Support
+
+The `Image` primitive enables passing images to vision-capable LMs as field
+values in any `Predict` or `TypedPredictor` call.
+
+```ts
+import { Image, Predict, settings, OpenAI } from "dstsx";
+
+settings.configure({ lm: new OpenAI({ model: "gpt-4o" }) });
+
+const captioner = new Predict("image, question -> caption");
+
+// From a URL (lazy — no download at construction time)
+const img1 = Image.fromURL("https://example.com/photo.jpg");
+const result1 = await captioner.forward({ image: img1, question: "Describe this image." });
+
+// From base64 data
+const img2 = Image.fromBase64(base64String, "image/png");
+
+// From a local file (read synchronously)
+const img3 = Image.fromFile("./photo.jpg");
+```
+
+**Static factory methods:**
+
+| Method | Description |
+|---|---|
+| `Image.fromURL(url)` | Image at a remote URL |
+| `Image.fromBase64(data, mimeType?)` | Inline base64 (default: `"image/jpeg"`) |
+| `Image.fromFile(path, mimeType?)` | Local file read synchronously; auto-detects MIME from extension |
+
+**Serialization helpers (used by adapters internally):**
+
+```ts
+img.toOpenAIContentPart()   // { type: "image_url", image_url: { url } }
+img.toAnthropicContentBlock() // { type: "image", source: { ... } }
+img.toString()              // "[Image: https://...]" — used in text prompts
+```
+
+**Supported MIME types:** `"image/jpeg"`, `"image/png"`, `"image/gif"`, `"image/webp"`
+
+---
+
+### BootstrapFinetune
+
+Extends `BootstrapFewShot` to collect execution traces and export them as a
+JSONL fine-tuning dataset.
+
+```ts
+import { BootstrapFinetune } from "dstsx";
+
+const optimizer = new BootstrapFinetune({
+  exportPath:           "./finetune_data.jsonl", // default
+  format:               "openai",               // "openai" | "generic"
+  maxBootstrappedDemos: 4,
+});
+
+const compiled = await optimizer.compile(program, trainset, metric);
+// "./finetune_data.jsonl" now contains one JSON object per line:
+// {"messages": [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `exportPath` | `string` | `"./finetune_data.jsonl"` | Output file path |
+| `format` | `"openai" \| "generic"` | `"openai"` | JSONL line format |
+| `maxBootstrappedDemos` | `number` | `4` | Demos to bootstrap per predictor |
+
+**Format examples:**
+
+`"openai"` (suitable for OpenAI fine-tuning):
+```jsonl
+{"messages": [{"role": "user", "content": "question: What is 2+2?"}, {"role": "assistant", "content": "answer: 4"}]}
+```
+
+`"generic"` (plain prompt/completion):
+```jsonl
+{"prompt": "question: What is 2+2?", "completion": "answer: 4"}
+```
+
+---
+
+### GRPO Optimizer
+
+Group Relative Policy Optimization — mirrors `dspy.GRPO`. Iteratively generates
+groups of candidate instruction variants, evaluates them relative to each other,
+and converges toward the best-scoring configuration.
+
+```ts
+import { GRPO } from "dstsx";
+
+const optimizer = new GRPO({
+  numSteps:    20,   // optimization iterations
+  groupSize:   8,    // candidates per group
+  temperature: 1.0,  // sampling temperature
+});
+
+const optimized = await optimizer.compile(program, trainset, metric);
+```
+
+**How it works:** Each step generates `groupSize` instruction alternatives using
+the configured LM at the specified temperature. All candidates are evaluated on
+the training set. The relative advantage of each is computed as
+`(score − mean) / std`. The best-scoring candidate becomes the new baseline for
+the next step.
+
+**Options:**
+
+| Option | Type | Default |
+|---|---|---|
+| `numSteps` | `number` | `20` |
+| `groupSize` | `number` | `8` |
+| `temperature` | `number` | `1.0` |
+| `maxLabeledDemos` | `number` | `16` |
+
+---
+
+### SIMBA Optimizer
+
+SIMBA (Stochastic Introspective Mini-Batch Ascent) — mirrors `dspy.SIMBA`. A
+lightweight stochastic optimizer well-suited for small training sets.
+
+```ts
+import { SIMBA } from "dstsx";
+
+const optimizer = new SIMBA({
+  numIter:              10,  // iterations
+  batchSize:            8,   // mini-batch size per evaluation
+  maxBootstrappedDemos: 4,
+});
+
+const optimized = await optimizer.compile(program, trainset, metric);
+```
+
+**How it works:** Initializes with `BootstrapFewShot`, then for each iteration
+draws a random mini-batch (Fisher-Yates shuffle), proposes a demo-subset
+candidate, evaluates it on the batch, and accepts it if it improves on the
+current best score.
+
+**Options:**
+
+| Option | Type | Default |
+|---|---|---|
+| `numIter` | `number` | `10` |
+| `batchSize` | `number` | `8` |
+| `maxBootstrappedDemos` | `number` | `4` |
+
+---
+
+### AvatarOptimizer
+
+Iteratively proposes and evaluates "avatar" role descriptions (persona prefixes)
+for each `Predict` module, selecting the instruction that scores highest on the
+training set.
+
+```ts
+import { AvatarOptimizer } from "dstsx";
+
+const optimizer = new AvatarOptimizer({
+  numAvatars:      4,   // candidate personas per predictor
+  maxLabeledDemos: 8,
+});
+
+const optimized = await optimizer.compile(program, trainset, metric);
+```
+
+**How it works:** For each `Predict` predictor in the program, asks the
+configured LM to generate `numAvatars` distinct role/persona descriptions
+(e.g. "You are an expert doctor…"). Each persona is prepended to the predictor's
+instructions and scored on the training set. The best persona is kept.
+
+**Options:**
+
+| Option | Type | Default |
+|---|---|---|
+| `numAvatars` | `number` | `4` |
+| `maxLabeledDemos` | `number` | `8` |
+
+---
+
+### Experiment Tracking
+
+Track optimizer progress (steps, scores, best candidates) to console, JSON
+files, or custom backends.
+
+```ts
+import { ConsoleTracker, JsonFileTracker, GRPO, SIMBA, AvatarOptimizer } from "dstsx";
+
+// Log to console
+const consoleTracker = new ConsoleTracker();
+// [STEP] step=1 score=0.7500
+// [BEST] step=3 score=0.8750
+
+// Log to JSONL file
+const fileTracker = new JsonFileTracker("./runs/exp1.jsonl");
+await fileTracker.flush(); // flush buffer to disk
+
+// Pass to any optimizer
+const optimizer = new GRPO({ numSteps: 10 });
+// (trackers are accepted as options on GRPO, SIMBA, AvatarOptimizer)
+```
+
+**Custom tracker — extend `Tracker`:**
+
+```ts
+import { Tracker } from "dstsx";
+import type { TrackerEvent } from "dstsx";
+
+class MLflowTracker extends Tracker {
+  log(event: TrackerEvent): void {
+    // Send to MLflow REST API, W&B, etc.
+    console.log("mlflow.log_metric", event.score);
+  }
+  async flush(): Promise<void> {}
+}
+```
+
+**`TrackerEvent` type:**
+
+```ts
+interface TrackerEvent {
+  type:      "step" | "trial" | "best" | "done";
+  step?:     number;
+  score?:    number;
+  metadata?: Record<string, unknown>;
+}
+```
+
+**Exported classes:** `Tracker` (abstract), `ConsoleTracker`, `JsonFileTracker`
+
+---
+
+### Worker-Thread `ProgramOfThought`
+
+`ProgramOfThought` now supports a `sandbox` option to run generated code in a
+Node.js Worker thread instead of `new Function()` in the main process, providing
+stronger isolation.
+
+```ts
+import { ProgramOfThought } from "dstsx";
+
+// Default: "function" (same process, backwards-compatible)
+const pot = new ProgramOfThought("question -> answer");
+
+// Worker thread isolation (Node 18+)
+const potWorker = new ProgramOfThought(
+  "question -> answer",
+  3,       // maxAttempts
+  5_000,   // timeoutMs
+  "worker" // sandbox mode
+);
+const result = await potWorker.forward({ question: "What is 2 ** 10?" });
+console.log(result.get("answer")); // "1024"
+
+// Disable timeout/sandbox entirely (not recommended for untrusted input)
+const potNone = new ProgramOfThought("question -> answer", 3, 5_000, "none");
+```
+
+**Sandbox modes:**
+
+| Mode | Isolation | True Cancellation | Notes |
+|---|---|---|---|
+| `"function"` | None — runs in main process | No | **Default.** Backwards-compatible. |
+| `"worker"` | Node.js Worker thread | Yes (terminate on timeout) | Requires Node 18+. |
+| `"none"` | None — no timeout applied | N/A | Fastest; do not use with untrusted code. |
+
+---
+
 ## End-to-End Examples
 
 ### 1. Simple Q&A
@@ -1669,7 +2035,7 @@ app.listen(3000);
 
 ## V2 Roadmap
 
-The following features are ✅ **implemented in v2**. Remaining items are tracked in [V2_ROADMAP.md](./V2_ROADMAP.md).
+The following features are ✅ **implemented in v2**. See [V2_ROADMAP.md](./V2_ROADMAP.md) for details.
 
 | Feature | DSPy Equivalent | Status |
 |---|---|---|
@@ -1680,16 +2046,20 @@ The following features are ✅ **implemented in v2**. Remaining items are tracke
 | **`BootstrapFewShotWithOptuna`** — TPE Bayesian search | `dspy.BootstrapFewShotWithOptuna` | ✅ v2 |
 | **Disk-persistent LM cache** — file-based LRU | `dspy.cache` | ✅ v2 |
 | **MCP Integration** — `MCPToolAdapter` + `DSTsxMCPServer` | — | ✅ v2 |
-| **Streaming** — token-level streaming from LM adapters | `dspy.streamify` | 🗓 Planned |
-| **Native tool calling** — OpenAI functions / Anthropic tool use | `dspy.Tool` (v2) | 🗓 Planned |
-| **Multi-modal** — image + audio inputs | `dspy.Image` | 🗓 Planned |
-| **`BootstrapFinetune`** — export traces for fine-tuning | `dspy.BootstrapFinetune` | 🗓 Planned |
-| **`GRPO` / `SIMBA` optimizers** — gradient-based search | `dspy.GRPO`, `dspy.SIMBA` | 🗓 Planned |
-| **`AvatarOptimizer`** — role-based prompt optimization | `dspy.AvatarOptimizer` | 🗓 Planned |
-| **Experiment tracking** — MLflow / W&B integration | `dspy.MLflow` | 🗓 Planned |
-| **Browser sandbox** — Worker-thread `ProgramOfThought` executor | — | 🗓 Planned |
-| **Typedoc site** — auto-generated API documentation | — | 🗓 Planned |
-| **npm publish workflow** — GitHub Actions CD pipeline | — | 🗓 Planned |
+| **LM Streaming** — `lm.stream()`, `predict.stream()` | `dspy.streamify` | ✅ v2 |
+| **`NativeReAct`** — OpenAI functions / Anthropic tool use | `dspy.Tool` (v2) | ✅ v2 |
+| **`Image`** — multi-modal image inputs | `dspy.Image` | ✅ v2 |
+| **`BootstrapFinetune`** — JSONL fine-tuning export | `dspy.BootstrapFinetune` | ✅ v2 |
+| **`GRPO`** optimizer — group relative policy optimization | `dspy.GRPO` | ✅ v2 |
+| **`SIMBA`** optimizer — stochastic mini-batch ascent | `dspy.SIMBA` | ✅ v2 |
+| **`AvatarOptimizer`** — role/persona prompt optimization | `dspy.AvatarOptimizer` | ✅ v2 |
+| **Experiment Tracking** — `ConsoleTracker`, `JsonFileTracker` | `dspy.MLflow` | ✅ v2 |
+| **Worker-thread `ProgramOfThought`** — `sandbox: "worker"` | — | ✅ v2 |
+| **Typedoc config** — `typedoc.json` + `npm run docs` | — | ✅ v2 |
+| **GitHub Actions** — CI + npm publish workflows | — | ✅ v2 |
+| Cross-language trace sharing | — | 🔭 Stretch |
+| Browser-native bundle (`dstsx/browser`) | — | 🔭 Stretch |
+| HTTP module serving (REST endpoint) | — | 🔭 Stretch |
 
 ---
 

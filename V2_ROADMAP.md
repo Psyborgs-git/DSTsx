@@ -65,10 +65,10 @@ console.log(result.typed.confidence); // 0.98
 
 ---
 
-### 2. LM Streaming
+### 2. ✅ LM Streaming
 
 **DSPy equivalent**: `dspy.streamify` (wraps a program for streaming)
-**Status**: 🗓 **Planned**
+**Status**: ✅ **Implemented** — see [README § LM Streaming](./README.md#lm-streaming)
 
 Token-level streaming output from all LM adapters.
 
@@ -107,10 +107,10 @@ const lm = new OpenAI({ model: "gpt-4o", cacheDir: "./.dstsx-cache" });
 
 ---
 
-### 4. Native Tool Calling (OpenAI Functions / Anthropic Tool Use)
+### 4. ✅ NativeReAct — Native Tool Calling (OpenAI Functions / Anthropic Tool Use)
 
 **DSPy equivalent**: `dspy.Tool` improvements in DSPy v2
-**Status**: 🗓 **Planned**
+**Status**: ✅ **Implemented** — see [README § NativeReAct](./README.md#nativereact)
 
 Use provider-native structured tool calling instead of text-based ReAct parsing.
 
@@ -143,9 +143,9 @@ const agent = new NativeReAct("question -> answer", tools);
 
 ---
 
-### 5. Typedoc API Documentation Site
+### 5. ✅ Typedoc API Documentation Site
 
-**Status**: 🗓 **Planned**
+**Status**: ✅ **Implemented** — `typedoc.json` added; run `npm run docs`
 
 Auto-generated API reference site published to GitHub Pages.
 
@@ -157,9 +157,9 @@ Auto-generated API reference site published to GitHub Pages.
 
 ---
 
-### 6. npm Publish Workflow (GitHub Actions CD)
+### 6. ✅ npm Publish Workflow (GitHub Actions CD)
 
-**Status**: 🗓 **Planned**
+**Status**: ✅ **Implemented** — `.github/workflows/ci.yml` + `publish.yml`
 
 Automate package publishing on version bumps.
 
@@ -227,10 +227,10 @@ Fan-out/fan-in: run multiple different modules concurrently and collect all thei
 
 ---
 
-### 11. Multi-modal Support (`dspy.Image`)
+### 11. ✅ Multi-modal Support (`dspy.Image`)
 
 **DSPy equivalent**: `dspy.Image`
-**Status**: 🗓 **Planned**
+**Status**: ✅ **Implemented** — see [README § Image](./README.md#image--multi-modal-support)
 
 Pass images (and other media) as inputs to vision-capable LMs.
 
@@ -261,9 +261,9 @@ Self-critique / iterative refinement loop.
 
 ---
 
-### 13. Worker-Thread Sandbox for `ProgramOfThought`
+### 13. ✅ Worker-Thread Sandbox for `ProgramOfThought`
 
-**Status**: 🗓 **Planned**
+**Status**: ✅ **Implemented** — see [README § Worker-Thread ProgramOfThought](./README.md#worker-thread-programofthought)
 
 Replace the current `new Function()` executor with a proper Node.js `Worker` thread.
 
@@ -276,10 +276,10 @@ Replace the current `new Function()` executor with a proper Node.js `Worker` thr
 
 ## Low Priority
 
-### 14. `BootstrapFinetune`
+### 14. ✅ `BootstrapFinetune`
 
 **DSPy equivalent**: `dspy.BootstrapFinetune`
-**Status**: 🗓 **Planned**
+**Status**: ✅ **Implemented** — see [README § BootstrapFinetune](./README.md#bootstrapfinetune)
 
 Collect LM traces and export them in fine-tuning format (JSONL) for providers that support it.
 
@@ -298,10 +298,10 @@ const recipe = await optimizer.compile(program, trainset, metric);
 
 ---
 
-### 15. `GRPO` Optimizer
+### 15. ✅ `GRPO` Optimizer
 
 **DSPy equivalent**: `dspy.GRPO` (Group Relative Policy Optimization)
-**Status**: 🗓 **Planned**
+**Status**: ✅ **Implemented** — see [README § GRPO Optimizer](./README.md#grpo-optimizer)
 
 Gradient-style prompt search using reinforcement-learning-inspired reward signals.
 
@@ -319,28 +319,28 @@ const optimized = await optimizer.compile(program, trainset, metric);
 
 ---
 
-### 16. `SIMBA` Optimizer
+### 16. ✅ `SIMBA` Optimizer
 
 **DSPy equivalent**: `dspy.SIMBA` (Stochastic Introspective Mini-Batch Ascent)
-**Status**: 🗓 **Planned**
+**Status**: ✅ **Implemented** — see [README § SIMBA Optimizer](./README.md#simba-optimizer)
 
 A lightweight stochastic search optimizer well-suited for small training sets.
 
 ---
 
-### 17. `AvatarOptimizer`
+### 17. ✅ `AvatarOptimizer`
 
 **DSPy equivalent**: `dspy.AvatarOptimizer`
-**Status**: 🗓 **Planned**
+**Status**: ✅ **Implemented** — see [README § AvatarOptimizer](./README.md#avataroptimizer)
 
 Iteratively proposes and evaluates "avatar" personas (role descriptions) for each `Predict` module.
 
 ---
 
-### 18. Experiment Tracking Integration
+### 18. ✅ Experiment Tracking Integration
 
 **DSPy equivalent**: `dspy.MLflow`
-**Status**: 🗓 **Planned**
+**Status**: ✅ **Implemented** — see [README § Experiment Tracking](./README.md#experiment-tracking)
 
 Log optimizer runs, metric scores, and demo sets to MLflow or Weights & Biases.
 
@@ -382,23 +382,23 @@ A `dstsx/browser` entry-point that strips all `node:` built-ins.
 | # | Feature | DSPy Symbol | Priority | Status |
 |---|---|---|---|---|
 | 1 | TypedPredictor / TypedChainOfThought | `TypedPredictor` | High | ✅ v2 |
-| 2 | LM Streaming | `streamify` | High | 🗓 Planned |
+| 2 | LM Streaming | `streamify` | High | ✅ v2 |
 | 3 | Disk-Persistent Cache | `dspy.cache` | High | ✅ v2 |
-| 4 | Native Tool Calling | `Tool` (v2) | High | 🗓 Planned |
-| 5 | Typedoc Site | — | High | 🗓 Planned |
-| 6 | npm Publish Workflow | — | High | 🗓 Planned |
+| 4 | NativeReAct — Native Tool Calling | `Tool` (v2) | High | ✅ v2 |
+| 5 | Typedoc Site | — | High | ✅ v2 |
+| 6 | npm Publish Workflow | — | High | ✅ v2 |
 | 7 | MCP Integration | — | High | ✅ v2 |
 | 8 | BootstrapFewShotWithOptuna | `BootstrapFewShotWithOptuna` | Medium | ✅ v2 |
 | 9 | Majority Helper | `majority` | Medium | ✅ v2 |
 | 10 | Parallel Module | `Parallel` | Medium | ✅ v2 |
-| 11 | Multi-modal (Image) | `dspy.Image` | Medium | 🗓 Planned |
+| 11 | Multi-modal (Image) | `dspy.Image` | Medium | ✅ v2 |
 | 12 | Refine Module | — | Medium | ✅ v2 |
-| 13 | Worker-Thread ProgramOfThought | — | Medium | 🗓 Planned |
-| 14 | BootstrapFinetune | `BootstrapFinetune` | Low | 🗓 Planned |
-| 15 | GRPO Optimizer | `GRPO` | Low | 🗓 Planned |
-| 16 | SIMBA Optimizer | `SIMBA` | Low | 🗓 Planned |
-| 17 | AvatarOptimizer | `AvatarOptimizer` | Low | 🗓 Planned |
-| 18 | Experiment Tracking | `MLflow` | Low | 🗓 Planned |
+| 13 | Worker-Thread ProgramOfThought | — | Medium | ✅ v2 |
+| 14 | BootstrapFinetune | `BootstrapFinetune` | Low | ✅ v2 |
+| 15 | GRPO Optimizer | `GRPO` | Low | ✅ v2 |
+| 16 | SIMBA Optimizer | `SIMBA` | Low | ✅ v2 |
+| 17 | AvatarOptimizer | `AvatarOptimizer` | Low | ✅ v2 |
+| 18 | Experiment Tracking | `MLflow` | Low | ✅ v2 |
 | 19 | HTTP Serving | — | Stretch | 🗓 Planned |
 | 20 | Cross-Language Trace Sharing | — | Stretch | 🗓 Planned |
 | 21 | Browser-Native Bundle | — | Stretch | 🗓 Planned |
