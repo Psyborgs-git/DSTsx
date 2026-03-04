@@ -1,4 +1,5 @@
 import { LRUCache } from "./cache.js";
+import { DiskCache } from "./DiskCache.js";
 import type { LMCallConfig, LMResponse, Message } from "./types.js";
 
 /**
@@ -17,12 +18,20 @@ export abstract class LM {
   readonly model: string;
 
   #cache: LRUCache<string, LMResponse>;
+  #diskCache: DiskCache | undefined;
   #requestCount = 0;
   #tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
-  constructor(model: string, cacheOptions: { maxSize?: number; ttlMs?: number } = {}) {
+  constructor(
+    model: string,
+    cacheOptions: { maxSize?: number; ttlMs?: number; cacheDir?: string } = {},
+  ) {
     this.model = model;
     this.#cache = new LRUCache(cacheOptions.maxSize, cacheOptions.ttlMs);
+    this.#diskCache =
+      cacheOptions.cacheDir !== undefined
+        ? new DiskCache(cacheOptions.cacheDir, cacheOptions.maxSize, cacheOptions.ttlMs)
+        : undefined;
   }
 
   // ---------------------------------------------------------------------------
@@ -41,8 +50,23 @@ export abstract class LM {
     const cached = this.#cache.get(cacheKey);
     if (cached) return cached;
 
+    // Check disk cache (second-level)
+    if (this.#diskCache) {
+      const diskCached = this.#diskCache.get(cacheKey);
+      if (diskCached) {
+        this.#cache.set(cacheKey, diskCached);
+        return diskCached;
+      }
+    }
+
     const response = await this._call(prompt, config);
     this.#cache.set(cacheKey, response);
+
+    // Persist to disk cache
+    if (this.#diskCache) {
+      this.#diskCache.set(cacheKey, response);
+    }
+
     this.#requestCount += 1;
     if (response.usage) {
       this.#tokenUsage.promptTokens += response.usage.promptTokens;

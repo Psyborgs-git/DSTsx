@@ -4,6 +4,8 @@ export { BootstrapFewShot } from "./BootstrapFewShot.js";
 export type { BootstrapFewShotOptions } from "./BootstrapFewShot.js";
 export { BootstrapFewShotWithRandomSearch } from "./BootstrapFewShotWithRandomSearch.js";
 export type { BootstrapFewShotWithRandomSearchOptions } from "./BootstrapFewShotWithRandomSearch.js";
+export { BootstrapFewShotWithOptuna } from "./BootstrapFewShotWithOptuna.js";
+export type { BootstrapFewShotWithOptunaOptions } from "./BootstrapFewShotWithOptuna.js";
 export { COPRO } from "./COPRO.js";
 export type { COPROOptions } from "./COPRO.js";
 export { MIPRO } from "./MIPRO.js";
