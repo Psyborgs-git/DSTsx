@@ -1,4 +1,4 @@
-import { Module } from "./Module.js";
+import { Module, firstPrediction, type ModuleOutput } from "./Module.js";
 import { Predict } from "./Predict.js";
 import { Prediction } from "../primitives/index.js";
 
@@ -36,9 +36,9 @@ export class Refine extends Module {
   override async forward(...args: unknown[]): Promise<Prediction> {
     const innerForward = this.#inner.forward.bind(this.#inner) as (
       ...a: unknown[]
-    ) => Promise<Prediction>;
+    ) => Promise<ModuleOutput>;
 
-    let prediction = await innerForward(...args);
+    let prediction = firstPrediction(await innerForward(...args));
 
     for (let i = 0; i < this.#maxRefinements; i++) {
       if (this.#stopCondition?.(prediction)) break;
@@ -71,7 +71,7 @@ export class Refine extends Module {
         };
       }
       try {
-        prediction = await innerForward(...newArgs);
+        prediction = firstPrediction(await innerForward(...newArgs));
       } catch {
         break;
       }

@@ -74,7 +74,7 @@ export class ProgramOfThought extends Module {
           ? {
               ...inputs,
               instructions:
-                "Write JavaScript code to compute the answer. Use a `return` statement for the final value.",
+                "Write JavaScript code to compute the answer. IMPORTANT: Use a `return` statement (not console.log) for the final value. Do not include markdown code fences.",
             }
           : { code, error: lastError };
 
@@ -84,6 +84,9 @@ export class ProgramOfThought extends Module {
           : await this.#corrector.forward(genInputs);
 
       code = String(generated.get("code") ?? generated.get("fixed_code") ?? "");
+
+      // Strip markdown code fences if present (```javascript ... ``` or ``` ... ```)
+      code = code.replace(/^```(?:\w+)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
 
       try {
         if (this.sandbox === "worker") {

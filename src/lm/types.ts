@@ -16,6 +16,8 @@ export interface LMCallConfig {
   stop?: string[];
   /** Number of completions to generate (default 1). */
   n?: number;
+  /** Opt-in to prompt caching API if the provider supports it (e.g. Anthropic `cache_control`). */
+  promptCaching?: boolean;
   /**
    * Optional cache key override.  When provided the cache uses this key
    * instead of hashing the prompt.
@@ -36,6 +38,8 @@ export interface LMResponse {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
+    /** Cached input tokens read by the provider (e.g. OpenAI cached_tokens, Anthropic cache_read_input_tokens). */
+    cachedPromptTokens?: number;
   } | null;
   /** Raw provider response (opaque). */
   raw: unknown;

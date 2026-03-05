@@ -1,4 +1,5 @@
-export { Module } from "./Module.js";
+export { Module, firstPrediction } from "./Module.js";
+export type { ModuleOutput } from "./Module.js";
 export { Predict } from "./Predict.js";
 export { ChainOfThought } from "./ChainOfThought.js";
 export { ChainOfThoughtWithHint } from "./ChainOfThoughtWithHint.js";

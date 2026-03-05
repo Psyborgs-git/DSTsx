@@ -20,7 +20,7 @@ export abstract class LM {
   #cache: LRUCache<string, LMResponse>;
   #diskCache: DiskCache | undefined;
   #requestCount = 0;
-  #tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  #tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, cachedPromptTokens: 0 };
 
   constructor(
     model: string,
@@ -72,6 +72,9 @@ export abstract class LM {
       this.#tokenUsage.promptTokens += response.usage.promptTokens;
       this.#tokenUsage.completionTokens += response.usage.completionTokens;
       this.#tokenUsage.totalTokens += response.usage.totalTokens;
+      if (response.usage.cachedPromptTokens) {
+        this.#tokenUsage.cachedPromptTokens += response.usage.cachedPromptTokens;
+      }
     }
     return response;
   }
@@ -82,7 +85,7 @@ export abstract class LM {
   }
 
   /** Accumulated token usage across all (non-cached) calls. */
-  get tokenUsage(): Readonly<{ promptTokens: number; completionTokens: number; totalTokens: number }> {
+  get tokenUsage(): Readonly<{ promptTokens: number; completionTokens: number; totalTokens: number; cachedPromptTokens: number }> {
     return { ...this.#tokenUsage };
   }
 

@@ -21,30 +21,38 @@ export interface OpenAIOptions {
  */
 export class OpenAI extends LM {
   readonly #options: OpenAIOptions;
+  #client: any;
 
   constructor(options: OpenAIOptions = {}) {
     super(options.model ?? "gpt-4o");
     this.#options = options;
   }
 
+  async #getClient(): Promise<any> {
+    if (!this.#client) {
+      // Dynamically import so consumers who don't use OpenAI aren't forced to
+      // install the package.
+      const { default: Client } = await import("openai").catch(() => {
+        throw new Error(
+          "The `openai` package is required for the OpenAI adapter.\n" +
+            "Install it with: npm install openai",
+        );
+      });
+
+      this.#client = new Client({
+        apiKey: this.#options.apiKey ?? process.env["OPENAI_API_KEY"],
+        baseURL: this.#options.baseURL,
+        maxRetries: this.#options.maxRetries ?? 3,
+      });
+    }
+    return this.#client;
+  }
+
   protected override async _call(
     prompt: string | Message[],
     config: LMCallConfig,
   ): Promise<LMResponse> {
-    // Dynamically import so consumers who don't use OpenAI aren't forced to
-    // install the package.
-    const { default: OpenAIClient } = await import("openai").catch(() => {
-      throw new Error(
-        "The `openai` package is required for the OpenAI adapter.\n" +
-          "Install it with: npm install openai",
-      );
-    });
-
-    const client = new OpenAIClient({
-      apiKey: this.#options.apiKey ?? process.env["OPENAI_API_KEY"],
-      baseURL: this.#options.baseURL,
-      maxRetries: this.#options.maxRetries ?? 3,
-    });
+    const client = await this.#getClient();
 
     const messages: Message[] =
       typeof prompt === "string"
@@ -65,14 +73,22 @@ export class OpenAI extends LM {
       (c: { message?: { content?: string | null } }) => c.message?.content ?? "",
     );
 
+    const usageDetails = response.usage as {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+      prompt_tokens_details?: { cached_tokens?: number };
+    } | undefined;
+
     return {
       text: texts[0] ?? "",
       texts,
-      usage: response.usage
+      usage: usageDetails
         ? {
-            promptTokens: response.usage.prompt_tokens,
-            completionTokens: response.usage.completion_tokens,
-            totalTokens: response.usage.total_tokens,
+            promptTokens: usageDetails.prompt_tokens,
+            completionTokens: usageDetails.completion_tokens,
+            totalTokens: usageDetails.total_tokens,
+            ...(usageDetails.prompt_tokens_details?.cached_tokens ? { cachedPromptTokens: usageDetails.prompt_tokens_details.cached_tokens } : {}),
           }
         : null,
       raw: response,
@@ -83,18 +99,7 @@ export class OpenAI extends LM {
     prompt: string | Message[],
     config: LMCallConfig = {},
   ): AsyncGenerator<import("../types.js").StreamChunk> {
-    const { default: OpenAIClient } = await import("openai").catch(() => {
-      throw new Error(
-        "The `openai` package is required for the OpenAI adapter.\n" +
-          "Install it with: npm install openai",
-      );
-    });
-
-    const client = new OpenAIClient({
-      apiKey: this.#options.apiKey ?? process.env["OPENAI_API_KEY"],
-      baseURL: this.#options.baseURL,
-      maxRetries: this.#options.maxRetries ?? 3,
-    });
+    const client = await this.#getClient();
 
     const messages: Message[] =
       typeof prompt === "string" ? [{ role: "user", content: prompt }] : prompt;

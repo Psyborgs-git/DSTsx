@@ -1,7 +1,7 @@
 import { Module } from "./Module.js";
 import { Predict } from "./Predict.js";
 import { Prediction } from "../primitives/index.js";
-import type { Signature } from "../signatures/index.js";
+import { Signature } from "../signatures/index.js";
 
 /** A callable tool that ReAct can invoke. */
 export interface Tool {
@@ -39,16 +39,17 @@ export class ReAct extends Module {
       .map((t) => `${t.name}: ${t.description}`)
       .join("\n");
 
-    const base = typeof signature === "string" ? signature : signature;
     const instructions =
       `You are an agent. Use the following tools:\n${toolDescriptions}\n\n` +
       `Respond in the format:\nThought: <reasoning>\nAction: <tool>[<args>]\nObservation: <result>\n...\nFinish[<answer>]`;
 
-    this.#predictor = new Predict(
-      typeof base === "string"
-        ? `${base}`
-        : base,
-    );
+    let baseSig = typeof signature === "string" ? Signature.from(signature) : signature;
+    baseSig = baseSig.withInput("trajectory", {
+      description: "Interleaved reasoning steps so far",
+      optional: true,
+    });
+
+    this.#predictor = new Predict(baseSig);
     this.#predictor.instructions = instructions;
   }
 

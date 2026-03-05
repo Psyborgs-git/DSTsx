@@ -29,8 +29,4 @@ export class ChainOfThoughtWithHint extends ChainOfThought {
     // Re-assign the signature via a workaround (Predict stores it as readonly).
     Object.assign(this, { signature: extendedSig });
   }
-
-  override async forward(inputs: Record<string, unknown>): Promise<Prediction> {
-    return super.forward(inputs);
-  }
 }

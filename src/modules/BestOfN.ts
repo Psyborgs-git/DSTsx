@@ -1,4 +1,4 @@
-import { Module } from "./Module.js";
+import { Module, firstPrediction, type ModuleOutput } from "./Module.js";
 import { Prediction } from "../primitives/index.js";
 
 /**
@@ -26,9 +26,9 @@ export class BestOfN extends Module {
   async forward(...args: unknown[]): Promise<Prediction> {
     const results = await Promise.all(
       Array.from({ length: this.N }, () =>
-        (this.#inner.forward as (...a: unknown[]) => Promise<Prediction>)(...args),
+        (this.#inner.forward as (...a: unknown[]) => Promise<ModuleOutput>)(...args),
       ),
     );
-    return this.#reduce(results);
+    return this.#reduce(results.map(firstPrediction));
   }
 }

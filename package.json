@@ -1,6 +1,6 @@
 {
   "name": "@jaex/dstsx",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A 1:1 TypeScript alternative to DSPy — Declarative Self-improving Language Programs",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -25,7 +25,8 @@
     "lint": "eslint src tests --ext .ts",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "docs": "typedoc"
+    "docs": "typedoc",
+    "serve-docs": "npx serve _docs"
   },
   "keywords": [
     "dspy",

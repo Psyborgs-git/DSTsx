@@ -72,4 +72,46 @@ describe("ReAct", () => {
     expect(typeof result.get("trajectory")).toBe("string");
     expect(String(result.get("trajectory")).length).toBeGreaterThan(0);
   });
+
+  it("passes trajectory into prompt inputs on subsequent iterations", async () => {
+    let capturedPrompt = "";
+    class SniffingLM extends MockLM {
+      constructor() {
+        super();
+      }
+      protected override async _call(
+        prompt: any,
+        config: any
+      ) {
+        const textPrompt = typeof prompt === "string" ? prompt : JSON.stringify(prompt);
+        capturedPrompt = textPrompt;
+        
+        const returnText = textPrompt.includes("Observation: 4") 
+          ? "Thought: done\nFinish[4]"
+          : "Thought: calc\nAction: calc[2+2]";
+          
+        return {
+          text: returnText,
+          texts: [returnText],
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+          raw: {},
+        };
+      }
+    }
+
+    const calcTool: Tool = {
+      name: "calc",
+      description: "Calculate expression",
+      fn: async (x: string) => String(eval(x)),
+    };
+    const lm = new SniffingLM();
+    settings.configure({ lm });
+    
+    const react = new ReAct("query -> result", [calcTool]);
+    const res = await react.forward({ query: "What is 2+2?" });
+    
+    expect(res.get("result")).toBe("4");
+    expect(capturedPrompt).toContain("trajectory");
+    expect(capturedPrompt).toContain("Observation: 4");
+  });
 });

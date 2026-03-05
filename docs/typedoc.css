@@ -1,0 +1,25 @@
+/* basic branding tweaks for DSTsx docs */
+
+/* make the header and sidebar use project colors */
+nav {
+  background-color: #1a202c; /* dark grey-blue */
+}
+
+nav a {
+  color: #e2e8f0;
+}
+
+nav a:hover {
+  color: #63b3ed; /* light blue */
+}
+
+/* custom title font */
+.header .title {
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+}
+
+/* adjust code block background */
+.tsd-panel tsd-code {
+  background: #2d3748;
+}

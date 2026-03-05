@@ -1,11 +1,14 @@
 import { LM } from "../LM.js";
 import type { LMCallConfig, LMResponse, Message } from "../types.js";
+import { settings } from "../../settings/index.js";
 
 /** Options for the Anthropic adapter. */
 export interface AnthropicOptions {
   apiKey?: string;
   model?: string;
   maxRetries?: number;
+  /** Whether to enable prompt caching up-front. */
+  promptCaching?: boolean;
 }
 
 /**
@@ -18,27 +21,36 @@ export interface AnthropicOptions {
  */
 export class Anthropic extends LM {
   readonly #options: AnthropicOptions;
+  #client: any;
 
   constructor(options: AnthropicOptions = {}) {
     super(options.model ?? "claude-3-5-sonnet-20241022");
     this.#options = options;
   }
 
+  async #getClient(): Promise<any> {
+    if (!this.#client) {
+      const { default: Client } = await import("@anthropic-ai/sdk").catch(() => {
+        throw new Error(
+          "The `@anthropic-ai/sdk` package is required for the Anthropic adapter.\n" +
+            "Install it with: npm install @anthropic-ai/sdk",
+        );
+      });
+      this.#client = new Client({
+        apiKey: this.#options.apiKey ?? process.env["ANTHROPIC_API_KEY"],
+        maxRetries: this.#options.maxRetries ?? 3,
+      });
+    }
+    return this.#client;
+  }
+
   protected override async _call(
     prompt: string | Message[],
     config: LMCallConfig,
   ): Promise<LMResponse> {
-    const { default: Anthropic } = await import("@anthropic-ai/sdk").catch(() => {
-      throw new Error(
-        "The `@anthropic-ai/sdk` package is required for the Anthropic adapter.\n" +
-          "Install it with: npm install @anthropic-ai/sdk",
-      );
-    });
+    const client = await this.#getClient();
 
-    const client = new Anthropic({
-      apiKey: this.#options.apiKey ?? process.env["ANTHROPIC_API_KEY"],
-      maxRetries: this.#options.maxRetries ?? 3,
-    });
+    const doCache = config.promptCaching ?? settings.lmConfig?.promptCaching ?? this.#options.promptCaching ?? false;
 
     const msgs: Message[] =
       typeof prompt === "string" ? [{ role: "user", content: prompt }] : prompt;
@@ -46,11 +58,28 @@ export class Anthropic extends LM {
     const systemMsg = msgs.find((m) => m.role === "system");
     const userMsgs = msgs.filter((m) => m.role !== "system");
 
+    let systemPayload: string | Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }> | undefined;
+    if (systemMsg) {
+      systemPayload = doCache
+        ? [{ type: "text", text: systemMsg.content, cache_control: { type: "ephemeral" } }]
+        : systemMsg.content;
+    }
+
+    const messagesPayload = userMsgs.map((m, idx) => {
+      const isLast = idx === userMsgs.length - 1;
+      return {
+        role: m.role as "user" | "assistant",
+        content: (doCache && isLast)
+          ? [{ type: "text" as const, text: m.content, cache_control: { type: "ephemeral" as const } }]
+          : m.content,
+      };
+    });
+
     const response = await client.messages.create({
       model: config.model ?? this.model,
       max_tokens: config.maxTokens ?? 1024,
-      system: systemMsg?.content,
-      messages: userMsgs.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+      system: systemPayload,
+      messages: messagesPayload,
       temperature: config.temperature,
       ...(config.extra ?? {}),
     });
@@ -61,14 +90,24 @@ export class Anthropic extends LM {
         .map((b: { type: string; text?: string }) => b.text ?? "")
         .join("") ?? "";
 
+    const usage = response.usage as { 
+      input_tokens: number; 
+      output_tokens: number; 
+      cache_read_input_tokens?: number | null; 
+      cache_creation_input_tokens?: number | null; 
+    };
+
+    const cachedInput = (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
+
     return {
       text,
       texts: [text],
-      usage: response.usage
+      usage: usage
         ? {
-            promptTokens: response.usage.input_tokens,
-            completionTokens: response.usage.output_tokens,
-            totalTokens: response.usage.input_tokens + response.usage.output_tokens,
+            promptTokens: usage.input_tokens,
+            completionTokens: usage.output_tokens,
+            totalTokens: usage.input_tokens + usage.output_tokens,
+            ...(cachedInput > 0 ? { cachedPromptTokens: cachedInput } : {}),
           }
         : null,
       raw: response,
@@ -79,17 +118,9 @@ export class Anthropic extends LM {
     prompt: string | Message[],
     config: LMCallConfig = {},
   ): AsyncGenerator<import("../types.js").StreamChunk> {
-    const { default: Anthropic } = await import("@anthropic-ai/sdk").catch(() => {
-      throw new Error(
-        "The `@anthropic-ai/sdk` package is required for the Anthropic adapter.\n" +
-          "Install it with: npm install @anthropic-ai/sdk",
-      );
-    });
+    const client = await this.#getClient();
 
-    const client = new Anthropic({
-      apiKey: this.#options.apiKey ?? process.env["ANTHROPIC_API_KEY"],
-      maxRetries: this.#options.maxRetries ?? 3,
-    });
+    const doCache = config.promptCaching ?? settings.lmConfig?.promptCaching ?? this.#options.promptCaching ?? false;
 
     const msgs: Message[] =
       typeof prompt === "string" ? [{ role: "user", content: prompt }] : prompt;
@@ -97,11 +128,28 @@ export class Anthropic extends LM {
     const systemMsg = msgs.find((m) => m.role === "system");
     const userMsgs = msgs.filter((m) => m.role !== "system");
 
+    let systemPayload: string | Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }> | undefined;
+    if (systemMsg) {
+      systemPayload = doCache
+        ? [{ type: "text", text: systemMsg.content, cache_control: { type: "ephemeral" } }]
+        : systemMsg.content;
+    }
+
+    const messagesPayload = userMsgs.map((m, idx) => {
+      const isLast = idx === userMsgs.length - 1;
+      return {
+        role: m.role as "user" | "assistant",
+        content: (doCache && isLast)
+          ? [{ type: "text" as const, text: m.content, cache_control: { type: "ephemeral" as const } }]
+          : m.content,
+      };
+    });
+
     const stream = client.messages.stream({
       model: config.model ?? this.model,
       max_tokens: config.maxTokens ?? 1024,
-      system: systemMsg?.content,
-      messages: userMsgs.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+      system: systemPayload,
+      messages: messagesPayload,
       ...(config.extra ?? {}),
     });
 

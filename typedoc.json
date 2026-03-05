@@ -1,12 +1,18 @@
 {
   "entryPoints": ["src/index.ts"],
-  "out": "docs",
+  "out": "_docs",
   "name": "DSTsx",
   "readme": "README.md",
   "includeVersion": true,
   "excludePrivate": true,
   "excludeInternal": true,
+  // include any hand‑written pages in docs/ so they appear in the sidebar
+  "includes": "docs",
+  "excludeExternals": true,
   "navigationLinks": {
     "GitHub": "https://github.com/Psyborgs-git/DSTsx"
-  }
+  },
+  // apply a bit of custom CSS for brand colours / layout tweaks
+  "theme": "default",
+  "customCss": "docs/typedoc.css"
 }

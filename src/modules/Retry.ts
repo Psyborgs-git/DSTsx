@@ -1,4 +1,4 @@
-import { Module } from "./Module.js";
+import { Module, firstPrediction, type ModuleOutput } from "./Module.js";
 import { Prediction } from "../primitives/index.js";
 import { AssertionError } from "../assertions/index.js";
 
@@ -23,7 +23,9 @@ export class Retry extends Module {
 
     for (let attempt = 0; attempt < this.maxAttempts; attempt++) {
       try {
-        return await (this.#inner.forward as (...a: unknown[]) => Promise<Prediction>)(...args);
+        return firstPrediction(
+          await (this.#inner.forward as (...a: unknown[]) => Promise<ModuleOutput>)(...args),
+        );
       } catch (err) {
         if (err instanceof AssertionError) {
           lastError = err;

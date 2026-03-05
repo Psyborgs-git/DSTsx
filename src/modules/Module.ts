@@ -1,10 +1,27 @@
-import type { Prediction } from "../primitives/index.js";
+import { Prediction } from "../primitives/index.js";
+
+/**
+ * The return type of {@link Module.forward} — either a single prediction or
+ * an array of predictions for modules that produce multiple outputs (e.g.
+ * {@link Parallel}).
+ */
+export type ModuleOutput = Prediction | Prediction[];
+
+/**
+ * Extracts the first {@link Prediction} from a {@link ModuleOutput}.
+ *
+ * Useful when consuming an unknown module whose `forward()` may return either
+ * a single prediction or an array.
+ */
+export function firstPrediction(result: ModuleOutput): Prediction {
+  return Array.isArray(result) ? (result[0] ?? new Prediction({})) : result;
+}
 
 /**
  * Abstract base class for all DSTsx modules.
  *
  * A Module is a composable, serializable unit that encapsulates one or more
- * language model calls.  Subclasses implement {@link Module.forward} to define
+ * language model calls.  Subclasses implement {@link Module["forward"]} to define
  * their behaviour.
  *
  * Mirrors `dspy.Module` in Python.
@@ -28,8 +45,13 @@ export abstract class Module {
    *
    * Subclasses define their own parameter signatures; the base type uses
    * `unknown` so that TypeScript accepts any subclass override.
+   *
+   * The return value is {@link ModuleOutput} — a single {@link Prediction} for
+   * most modules, or a `Prediction[]` for multi-output modules such as
+   * {@link Parallel}.  Use {@link firstPrediction} to safely extract the first
+   * result when consuming an unknown module.
    */
-  abstract forward(...args: unknown[]): Promise<Prediction>;
+  abstract forward(...args: unknown[]): Promise<ModuleOutput>;
 
   /**
    * Recursively discover all {@link Predict} sub-modules by walking the own
@@ -87,7 +109,7 @@ export abstract class Module {
       if (value instanceof Module) {
         (cloned as Record<string, unknown>)[key] = value.clone();
       } else if (Array.isArray(value)) {
-        (cloned as Record<string, unknown>)[key] = [...value];
+        (cloned as Record<string, unknown>)[key] = [...(value as unknown[])];
       } else {
         (cloned as Record<string, unknown>)[key] = value;
       }

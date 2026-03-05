@@ -2050,6 +2050,16 @@ To publish new versions of `dstsx`, follow the workflow below:
 4. For local manual publishes you can run `npm publish`; `prepublishOnly` runs
    the test suite and builds automatically.
 
+### Documentation site
+
+* API docs are generated via TypeDoc – run `npm run docs` to rebuild the
+  `./docs` directory. Any markdown pages you add under `docs/` are included in
+  the sidebar, thanks to the `includes` setting in `typedoc.json`.
+* A little CSS file (`docs/typedoc.css`) is automatically injected so you can
+  tweak colours, fonts, or other layout details.
+* The GitHub Action in `.github/workflows/docs.yml` will rebuild & publish the
+  site to GitHub Pages on every push to `main`.
+
 Contributions are welcome! Please open issues or pull requests against the
 GitHub repository.
 
