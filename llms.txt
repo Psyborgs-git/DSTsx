@@ -1,0 +1,33 @@
+# DSTsx
+
+> A TypeScript-first port of [DSPy](https://github.com/stanfordnlp/dspy) — Declarative Self-improving Language Programs.
+
+DSTsx lets you build **typed, composable LM pipelines** in TypeScript and then **optimize** their prompts and few-shot examples automatically—no manual prompt engineering required.
+
+- **npm**: `dstsx`
+- **License**: MIT
+- **Node.js**: 18+ required
+- **DSPy equivalent**: 1:1 TypeScript port of [DSPy](https://github.com/stanfordnlp/dspy)
+
+## Docs
+
+- [docs/overview.md](docs/overview.md): Installation, quick start, core concepts, documentation index
+- [docs/signatures.md](docs/signatures.md): `Signature`, `InputField`, `OutputField`, `FieldMeta`
+- [docs/primitives.md](docs/primitives.md): `Example`, `Prediction`, `Trace`, `Image`, `majority()`
+- [docs/lm-adapters.md](docs/lm-adapters.md): LM adapters (OpenAI, Anthropic, Cohere, GoogleAI, Ollama, LMStudio, HuggingFace, MockLM), `LMCallConfig`, `LMResponse`, streaming, disk cache
+- [docs/settings.md](docs/settings.md): `settings.configure()`, `settings.context()`, `SettingsOptions`, per-request isolation
+- [docs/modules.md](docs/modules.md): `Predict`, `ChainOfThought`, `ChainOfThoughtWithHint`, `MultiChainComparison`, `ReAct`, `NativeReAct`, `ProgramOfThought`, `Retrieve`, `Retry`, `BestOfN`, `Ensemble`, `Parallel`, `Refine`, `TypedPredictor`, `TypedChainOfThought`
+- [docs/retrievers.md](docs/retrievers.md): `ColBERTv2`, `PineconeRM`, `ChromadbRM`, `QdrantRM`, `WeaviateRM`, `FaissRM`, `YouRM`, `MockRetriever`
+- [docs/optimizers.md](docs/optimizers.md): `LabeledFewShot`, `BootstrapFewShot`, `BootstrapFewShotWithRandomSearch`, `BootstrapFewShotWithOptuna`, `COPRO`, `MIPRO`, `KNNFewShot`, `EnsembleOptimizer`, `BootstrapFinetune`, `GRPO`, `SIMBA`, `AvatarOptimizer`
+- [docs/evaluate.md](docs/evaluate.md): `evaluate()`, `exactMatch`, `f1`, `passAtK`, `bleu`, `rouge`, custom metrics
+- [docs/assertions.md](docs/assertions.md): `Assert`, `Suggest`, `AssertionError`, assertion + retry pattern
+- [docs/v2-features.md](docs/v2-features.md): Full v2 feature reference and DSPy equivalence table
+- [docs/tracking.md](docs/tracking.md): `Tracker`, `ConsoleTracker`, `JsonFileTracker`, custom trackers
+- [docs/mcp.md](docs/mcp.md): `MCPToolAdapter`, `DSTsxMCPServer`
+- [docs/examples.md](docs/examples.md): End-to-end code examples (Q&A, RAG, ReAct, optimization, streaming, etc.)
+
+## Optional
+
+- [README.md](README.md): Full combined reference (all sections in one file)
+- [REQUIREMENTS.md](REQUIREMENTS.md): Detailed requirements specification
+- [V2_ROADMAP.md](V2_ROADMAP.md): v2 roadmap and stretch goals
