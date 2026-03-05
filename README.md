@@ -2037,6 +2037,25 @@ app.listen(3000);
 
 ## V2 Roadmap
 
+## Contributing & Releases
+
+To publish new versions of `dstsx`, follow the workflow below:
+
+1. Update the package version (`npm version patch`, `minor`, or `major`).
+2. Push commits and tags to GitHub (`git push && git push --tags`).
+3. Create a GitHub release for the new tag (manual or via `gh` CLI). The
+   existing GitHub Action (`.github/workflows/publish.yml`) triggers on a
+   **published** release and will run tests + build and then publish the
+   package to npm using the `NPM_TOKEN` secret.
+4. For local manual publishes you can run `npm publish`; `prepublishOnly` runs
+   the test suite and builds automatically.
+
+Contributions are welcome! Please open issues or pull requests against the
+GitHub repository.
+
+
+## V2 Roadmap
+
 The following features are ✅ **implemented in v2**. See [V2_ROADMAP.md](./V2_ROADMAP.md) for details.
 
 | Feature | DSPy Equivalent | Status |

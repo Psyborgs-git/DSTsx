@@ -8,15 +8,17 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test && npm run build",
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -36,6 +38,18 @@
     "typescript"
   ],
   "license": "MIT",
+  "author": "Psyborg",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Psyborgs-git/DSTsx.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Psyborgs-git/DSTsx/issues"
+  },
+  "homepage": "https://github.com/Psyborgs-git/DSTsx#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@types/node": "^25.3.3",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
