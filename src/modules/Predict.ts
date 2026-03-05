@@ -55,6 +55,18 @@ export class Predict extends Module {
     return new Prediction(outputs, completions);
   }
 
+  /**
+   * Stream the LM response token by token.
+   * Returns an `AsyncGenerator<StreamChunk>`.
+   */
+  async *stream(inputs: Record<string, unknown>): AsyncGenerator<import("../lm/types.js").StreamChunk> {
+    const lm = settings.lm;
+    if (!lm) throw new Error("No LM configured. Call settings.configure({ lm }) before using Predict.");
+    const prompt = this.#buildPrompt(inputs);
+    const config = settings.lmConfig ?? {};
+    yield* lm.stream(prompt, config);
+  }
+
   // ---------------------------------------------------------------------------
   // Serialization
   // ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ export interface OpenAIOptions {
   /** Default model, can be overridden per-call. */
   model?: string;
   maxRetries?: number;
+  stream?: boolean;
 }
 
 /**
@@ -76,5 +77,46 @@ export class OpenAI extends LM {
         : null,
       raw: response,
     };
+  }
+
+  override async *stream(
+    prompt: string | Message[],
+    config: LMCallConfig = {},
+  ): AsyncGenerator<import("../types.js").StreamChunk> {
+    const { default: OpenAIClient } = await import("openai").catch(() => {
+      throw new Error(
+        "The `openai` package is required for the OpenAI adapter.\n" +
+          "Install it with: npm install openai",
+      );
+    });
+
+    const client = new OpenAIClient({
+      apiKey: this.#options.apiKey ?? process.env["OPENAI_API_KEY"],
+      baseURL: this.#options.baseURL,
+      maxRetries: this.#options.maxRetries ?? 3,
+    });
+
+    const messages: Message[] =
+      typeof prompt === "string" ? [{ role: "user", content: prompt }] : prompt;
+
+    const stream = await client.chat.completions.create({
+      model: config.model ?? this.model,
+      messages,
+      temperature: config.temperature,
+      max_tokens: config.maxTokens,
+      stop: config.stop,
+      stream: true as const,
+      ...(config.extra ?? {}),
+    });
+
+    for await (const chunk of stream) {
+      type StreamChoice = { delta?: { content?: string | null }; finish_reason?: string | null };
+      type StreamResponse = { choices?: StreamChoice[] };
+      const c = (chunk as StreamResponse).choices?.[0];
+      const delta = c?.delta?.content ?? "";
+      const done = c?.finish_reason != null;
+      yield { delta, done, raw: chunk };
+      if (done) break;
+    }
   }
 }

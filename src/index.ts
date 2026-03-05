@@ -10,3 +10,5 @@ export * from "./optimizers/index.js";
 export * from "./evaluate/index.js";
 export * from "./assertions/index.js";
 export * from "./settings/index.js";
+export * from "./mcp/index.js";
+export * from "./tracking/index.js";

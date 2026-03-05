@@ -40,3 +40,13 @@ export interface LMResponse {
   /** Raw provider response (opaque). */
   raw: unknown;
 }
+
+/** A single chunk emitted during token streaming. */
+export interface StreamChunk {
+  /** The incremental text delta for this chunk. */
+  delta: string;
+  /** True on the final chunk. */
+  done: boolean;
+  /** Raw provider chunk (opaque). */
+  raw: unknown;
+}

@@ -40,3 +40,15 @@ declare module "weaviate-client" {
   const value: any;
   export default value;
 }
+
+declare module "@modelcontextprotocol/sdk/client/index.js" {
+  export const Client: any;
+}
+
+declare module "@modelcontextprotocol/sdk/server/index.js" {
+  export const Server: any;
+}
+
+declare module "@modelcontextprotocol/sdk/server/stdio.js" {
+  export const StdioServerTransport: any;
+}

@@ -10,3 +10,8 @@ export { Retrieve } from "./Retrieve.js";
 export { Retry } from "./Retry.js";
 export { BestOfN } from "./BestOfN.js";
 export { Ensemble } from "./Ensemble.js";
+export { TypedPredictor, TypedChainOfThought, TypedPrediction } from "./TypedPredictor.js";
+export { Parallel } from "./Parallel.js";
+export { Refine } from "./Refine.js";
+export type { RefineOptions } from "./Refine.js";
+export { NativeReAct } from "./NativeReAct.js";
