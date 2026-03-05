@@ -8,6 +8,8 @@
 
 DSTsx lets you build **typed, composable LM pipelines** in TypeScript and then **optimize** their prompts and few-shot examples automatically—no manual prompt engineering required.
 
+> **LLM / AI assistant?** See [`llms.txt`](./llms.txt) for a machine-readable index, or browse the focused [`docs/`](./docs/) directory for topic-specific reference files.
+
 ---
 
 ## Table of Contents
