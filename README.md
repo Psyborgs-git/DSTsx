@@ -2,7 +2,7 @@
 
 > A TypeScript-first port of [DSPy](https://github.com/stanfordnlp/dspy) — Declarative Self-improving Language Programs.
 
-[![npm version](https://img.shields.io/npm/v/dstsx.svg)](https://www.npmjs.com/package/dstsx)
+[![npm version](https://img.shields.io/npm/v/dstsx.svg)](https://www.npmjs.com/package/@jaex/dstsx)
 [![license](https://img.shields.io/npm/l/dstsx.svg)](LICENSE)
 [![tests](https://img.shields.io/badge/tests-218%20passing-brightgreen.svg)](#)
 
@@ -52,7 +52,7 @@ DSTsx lets you build **typed, composable LM pipelines** in TypeScript and then *
 ## Installation
 
 ```bash
-npm install dstsx
+npm install @jaex/dstsx
 ```
 
 Install provider SDK peer dependencies only for the adapters you use:

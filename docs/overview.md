@@ -9,7 +9,7 @@ DSTsx lets you build **typed, composable LM pipelines** in TypeScript and then *
 ## Installation
 
 ```bash
-npm install dstsx
+npm install @jaex/dstsx
 ```
 
 Install provider SDK peer dependencies only for the adapters you use:

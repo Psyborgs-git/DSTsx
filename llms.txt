@@ -4,7 +4,7 @@
 
 DSTsx lets you build **typed, composable LM pipelines** in TypeScript and then **optimize** their prompts and few-shot examples automatically—no manual prompt engineering required.
 
-- **npm**: `dstsx`
+- **npm**: `@jaex/dstsx`
 - **License**: MIT
 - **Node.js**: 18+ required
 - **DSPy equivalent**: 1:1 TypeScript port of [DSPy](https://github.com/stanfordnlp/dspy)
