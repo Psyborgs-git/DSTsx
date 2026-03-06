@@ -55,9 +55,7 @@ export class OpenAI extends LM {
     const client = await this.#getClient();
 
     const messages: Message[] =
-      typeof prompt === "string"
-        ? [{ role: "user", content: prompt }]
-        : prompt;
+      typeof prompt === "string" ? [{ role: "user", content: prompt }] : prompt;
 
     const response = await client.chat.completions.create({
       model: config.model ?? this.model,
@@ -73,12 +71,14 @@ export class OpenAI extends LM {
       (c: { message?: { content?: string | null } }) => c.message?.content ?? "",
     );
 
-    const usageDetails = response.usage as {
-      prompt_tokens: number;
-      completion_tokens: number;
-      total_tokens: number;
-      prompt_tokens_details?: { cached_tokens?: number };
-    } | undefined;
+    const usageDetails = response.usage as
+      | {
+          prompt_tokens: number;
+          completion_tokens: number;
+          total_tokens: number;
+          prompt_tokens_details?: { cached_tokens?: number };
+        }
+      | undefined;
 
     return {
       text: texts[0] ?? "",
@@ -88,7 +88,9 @@ export class OpenAI extends LM {
             promptTokens: usageDetails.prompt_tokens,
             completionTokens: usageDetails.completion_tokens,
             totalTokens: usageDetails.total_tokens,
-            ...(usageDetails.prompt_tokens_details?.cached_tokens ? { cachedPromptTokens: usageDetails.prompt_tokens_details.cached_tokens } : {}),
+            ...(usageDetails.prompt_tokens_details?.cached_tokens
+              ? { cachedPromptTokens: usageDetails.prompt_tokens_details.cached_tokens }
+              : {}),
           }
         : null,
       raw: response,
