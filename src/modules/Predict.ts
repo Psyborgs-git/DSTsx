@@ -27,7 +27,8 @@ export class Predict extends Module {
 
   constructor(signature: string | Signature) {
     super();
-    this.signature = typeof signature === "string" ? Signature.from(signature) : signature;
+    this.signature =
+      typeof signature === "string" ? Signature.from(signature) : signature;
     this.demos = [];
     this.instructions = this.signature.instructions;
   }
@@ -39,7 +40,9 @@ export class Predict extends Module {
   async forward(inputs: Record<string, unknown>): Promise<Prediction> {
     const lm = settings.lm;
     if (!lm) {
-      throw new Error("No LM configured. Call settings.configure({ lm }) before using Predict.");
+      throw new Error(
+        "No LM configured. Call settings.configure({ lm }) before using Predict.",
+      );
     }
 
     const prompt = this.#buildPrompt(inputs);
@@ -56,12 +59,9 @@ export class Predict extends Module {
    * Stream the LM response token by token.
    * Returns an `AsyncGenerator<StreamChunk>`.
    */
-  async *stream(
-    inputs: Record<string, unknown>,
-  ): AsyncGenerator<import("../lm/types.js").StreamChunk> {
+  async *stream(inputs: Record<string, unknown>): AsyncGenerator<import("../lm/types.js").StreamChunk> {
     const lm = settings.lm;
-    if (!lm)
-      throw new Error("No LM configured. Call settings.configure({ lm }) before using Predict.");
+    if (!lm) throw new Error("No LM configured. Call settings.configure({ lm }) before using Predict.");
     const prompt = this.#buildPrompt(inputs);
     const config = settings.lmConfig ?? {};
     yield* lm.stream(prompt, config);
@@ -81,7 +81,9 @@ export class Predict extends Module {
 
   override load(state: Record<string, unknown>): void {
     if (Array.isArray(state["demos"])) {
-      this.demos = (state["demos"] as Record<string, unknown>[]).map((d) => new Example(d));
+      this.demos = (state["demos"] as Record<string, unknown>[]).map(
+        (d) => new Example(d),
+      );
     }
     if (typeof state["instructions"] === "string") {
       this.instructions = state["instructions"];
@@ -165,7 +167,9 @@ export class Predict extends Module {
 
     // Create a combined regex to find all field markers
     const allPatterns = fieldLabels.flatMap((f) => f.patterns);
-    const allPatternsEscaped = allPatterns.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const allPatternsEscaped = allPatterns.map((p) =>
+      p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    );
 
     // Pattern matches: optional markdown, label, optional markdown, colon
     // e.g., "**Answer:**", "Reasoning:", "*rationale:*"
