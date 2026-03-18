@@ -44,8 +44,11 @@ export class BootstrapFewShot extends Optimizer {
       try {
         const inputs = example.toDict() as Record<string, unknown>;
         const prediction = await (teacher.forward as (i: Record<string, unknown>) => Promise<Prediction>)(inputs);
-        const raw = metric(example, prediction);
-        const passed = typeof raw === "boolean" ? raw : raw > 0;
+        const raw = await metric(example, prediction);
+        const passed =
+          typeof raw === "boolean" ? raw :
+          typeof raw === "number" ? raw > 0 :
+          raw.score > 0;
         if (passed) {
           demos.push(example.with(prediction.toDict() as Record<string, unknown>));
         }

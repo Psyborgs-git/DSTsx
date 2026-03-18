@@ -2,6 +2,8 @@ import { Module } from "./Module.js";
 import { Predict } from "./Predict.js";
 import { Prediction } from "../primitives/index.js";
 import { Signature } from "../signatures/index.js";
+import { ToolCalls } from "../primitives/ToolCalls.js";
+import type { ToolCallEntry } from "../primitives/ToolCalls.js";
 
 /** A callable tool that ReAct can invoke. */
 export interface Tool {
@@ -55,6 +57,7 @@ export class ReAct extends Module {
 
   async forward(inputs: Record<string, unknown>): Promise<Prediction> {
     const trajectory: string[] = [];
+    const toolCallEntries: ToolCallEntry[] = [];
     let finalAnswer = "";
 
     for (let i = 0; i < this.maxIter; i++) {
@@ -83,6 +86,11 @@ export class ReAct extends Module {
         const observation = tool
           ? await tool.fn(toolArgs)
           : `Tool "${toolName}" not found.`;
+        toolCallEntries.push({
+          name: toolName,
+          args: { input: toolArgs },
+          result: observation,
+        });
         trajectory.push(`Observation: ${observation}`);
       }
     }
@@ -91,6 +99,7 @@ export class ReAct extends Module {
     return new Prediction({
       [outputKey]: finalAnswer || trajectory.at(-1) || "",
       trajectory: trajectory.join("\n"),
+      toolCalls: new ToolCalls(toolCallEntries),
     });
   }
 }

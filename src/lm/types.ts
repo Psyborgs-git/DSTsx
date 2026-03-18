@@ -43,6 +43,8 @@ export interface LMResponse {
   } | null;
   /** Raw provider response (opaque). */
   raw: unknown;
+  /** Native reasoning content if provided by model (e.g. o1, o3, DeepSeek-R1). */
+  reasoning?: string | undefined;
 }
 
 /** A single chunk emitted during token streaming. */

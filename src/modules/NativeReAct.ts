@@ -4,6 +4,8 @@ import { Signature } from "../signatures/index.js";
 import type { Tool } from "./ReAct.js";
 import { settings } from "../settings/index.js";
 import type { Message } from "../lm/types.js";
+import { ToolCalls } from "../primitives/ToolCalls.js";
+import type { ToolCallEntry } from "../primitives/ToolCalls.js";
 
 /**
  * ReAct variant that uses provider-native tool/function calling instead of
@@ -69,6 +71,7 @@ export class NativeReAct extends Module {
     ];
 
     let finalAnswer = "";
+    const toolCallEntries: ToolCallEntry[] = [];
     const trajectory: Array<{ thought: string; action: string; observation: string }> = [];
 
     for (let i = 0; i < this.maxIter; i++) {
@@ -94,6 +97,17 @@ export class NativeReAct extends Module {
             ? await tool.fn(args).catch((e: unknown) => String(e))
             : `Unknown tool: ${toolName}`;
 
+          let parsedArgs: Record<string, unknown>;
+          try {
+            parsedArgs = JSON.parse(args) as Record<string, unknown>;
+          } catch {
+            parsedArgs = { input: args };
+          }
+          toolCallEntries.push({
+            name: toolName,
+            args: parsedArgs,
+            result: observation,
+          });
           trajectory.push({
             thought: `Using tool: ${toolName}`,
             action: `${toolName}(${args})`,
@@ -108,6 +122,6 @@ export class NativeReAct extends Module {
       }
     }
 
-    return new Prediction({ [this.#outputKey]: finalAnswer, trajectory: JSON.stringify(trajectory) });
+    return new Prediction({ [this.#outputKey]: finalAnswer, trajectory: JSON.stringify(trajectory), toolCalls: new ToolCalls(toolCallEntries) });
   }
 }

@@ -143,3 +143,45 @@ function lcs(a: string[], b: string[]): number {
 function buildPrediction(data: Record<string, unknown>): Prediction {
   return new Prediction(data);
 }
+
+// ---------------------------------------------------------------------------
+// Answer Exact Match (normalized)
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalizes before comparing: lowercase, remove articles (a/an/the), strip punctuation.
+ * Mirrors `dspy.answer_exact_match`.
+ */
+export function answerExactMatch(field = "answer"): Metric {
+  return (example, prediction) => {
+    const normalize = (s: string): string =>
+      s
+        .toLowerCase()
+        .replace(/\b(a|an|the)\b/g, "")
+        .replace(/[^\w\s]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    const expected = normalize(String(example.get(field) ?? ""));
+    const actual = normalize(String(prediction.get(field) ?? ""));
+    return expected === actual;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Answer Passage Match
+// ---------------------------------------------------------------------------
+
+/**
+ * Checks if prediction text appears in any passage from the context field.
+ * Mirrors `dspy.answer_passage_match`.
+ */
+export function answerPassageMatch(field = "answer"): Metric {
+  return (example, prediction) => {
+    const answer = String(prediction.get(field) ?? "")
+      .toLowerCase()
+      .trim();
+    if (answer.length === 0) return 0;
+    const context = String(example.get("context") ?? "").toLowerCase();
+    return context.includes(answer) ? 1 : 0;
+  };
+}

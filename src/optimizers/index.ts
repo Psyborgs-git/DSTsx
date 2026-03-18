@@ -22,4 +22,13 @@ export { SIMBA } from "./SIMBA.js";
 export type { SIMBAOptions } from "./SIMBA.js";
 export { AvatarOptimizer } from "./AvatarOptimizer.js";
 export type { AvatarOptimizerOptions } from "./AvatarOptimizer.js";
+export { MIPROv2 } from "./MIPROv2.js";
+export type { MIPROv2Options } from "./MIPROv2.js";
+export { BootstrapFewShotWithRandomSearch as BootstrapRS } from "./BootstrapFewShotWithRandomSearch.js";
+export { GEPA } from "./GEPA.js";
+export type { GEPAOptions } from "./GEPA.js";
+export { BetterTogether } from "./BetterTogether.js";
+export type { BetterTogetherOptions } from "./BetterTogether.js";
+export { InferRules } from "./InferRules.js";
+export type { InferRulesOptions } from "./InferRules.js";
 
