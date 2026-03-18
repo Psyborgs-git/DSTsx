@@ -16,3 +16,6 @@ export { Parallel } from "./Parallel.js";
 export { Refine } from "./Refine.js";
 export type { RefineOptions } from "./Refine.js";
 export { NativeReAct } from "./NativeReAct.js";
+export { CodeAct } from "./CodeAct.js";
+export { Reasoning } from "./Reasoning.js";
+export { RLM } from "./RLM.js";
