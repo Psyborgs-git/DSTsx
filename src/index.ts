@@ -12,3 +12,4 @@ export * from "./assertions/index.js";
 export * from "./settings/index.js";
 export * from "./mcp/index.js";
 export * from "./tracking/index.js";
+export * from "./adapters/index.js";

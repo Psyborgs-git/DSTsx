@@ -72,8 +72,11 @@ export class BootstrapFewShotWithOptuna extends BootstrapFewShot {
           const prediction = await (
             candidate.forward as (i: Record<string, unknown>) => Promise<Prediction>
           )(inputs);
-          const raw = metric(example, prediction);
-          score += typeof raw === "boolean" ? (raw ? 1 : 0) : raw;
+          const rawResult = await metric(example, prediction);
+          score +=
+            typeof rawResult === "boolean" ? (rawResult ? 1 : 0) :
+            typeof rawResult === "number" ? rawResult :
+            rawResult.score;
         } catch {
           // skip failed examples
         }

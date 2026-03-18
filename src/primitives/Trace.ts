@@ -24,4 +24,6 @@ export interface Trace {
   latencyMs: number;
   /** ISO-8601 timestamp of the call. */
   timestamp: string;
+  /** Native reasoning content if provided by model. */
+  reasoning?: string | undefined;
 }

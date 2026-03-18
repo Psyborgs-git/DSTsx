@@ -43,8 +43,11 @@ export async function evaluate(
     } catch {
       prediction = new Prediction({});
     }
-    const raw = metric(example, prediction);
-    const score = typeof raw === "boolean" ? (raw ? 1 : 0) : raw;
+    const rawResult = await metric(example, prediction);
+    const score =
+      typeof rawResult === "boolean" ? (rawResult ? 1 : 0) :
+      typeof rawResult === "number" ? rawResult :
+      rawResult.score;
     return { example, prediction, score, passed: score > 0 };
   };
 
