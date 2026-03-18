@@ -1,6 +1,6 @@
 # DSTsx
 
-> A TypeScript-first port of [DSPy](https://github.com/stanfordnlp/dspy) — Declarative Self-improving Language Programs.
+> Declarative Self-improving Language Programs in TypeScript — a full-featured TypeScript port of DSPy.
 
 [![npm version](https://img.shields.io/npm/v/dstsx.svg)](https://www.npmjs.com/package/@jaex/dstsx)
 [![license](https://img.shields.io/npm/l/dstsx.svg)](LICENSE)
