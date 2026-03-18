@@ -23,8 +23,10 @@ export function streamify<T extends Module>(
     ): AsyncGenerator<StreamChunk> {
       const result = await module.forward(inputs);
       const text = Array.isArray(result)
-        ? JSON.stringify(result)
-        : JSON.stringify(result.toDict());
+        ? JSON.stringify(result.map((r) => r.toDict()))
+        : "toDict" in result
+          ? JSON.stringify(result.toDict())
+          : JSON.stringify(result);
       yield { delta: text, done: true, raw: result };
     };
   }

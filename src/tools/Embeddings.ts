@@ -46,10 +46,12 @@ export class Embeddings {
   }
 
   #cosineSimilarity(a: number[], b: number[]): number {
+    const len = Math.min(a.length, b.length);
+    if (len === 0) return 0;
     let dot = 0;
     let normA = 0;
     let normB = 0;
-    for (let i = 0; i < a.length; i++) {
+    for (let i = 0; i < len; i++) {
       dot += (a[i] ?? 0) * (b[i] ?? 0);
       normA += (a[i] ?? 0) ** 2;
       normB += (b[i] ?? 0) ** 2;

@@ -8,6 +8,9 @@ import type { Tool } from "./ReAct.js";
 /**
  * Agent loop where actions are executable code, with persistent session state.
  * Mirrors `dspy.CodeAct`.
+ *
+ * **Security warning:** Code execution uses `new Function()`. Always prefer the
+ * `"worker"` sandbox mode and never run untrusted input without review.
  */
 export class CodeAct extends Module {
   readonly #predictor: Predict;

@@ -22,7 +22,12 @@ export class JSInterpreter {
     };
   }
 
-  /** Execute JavaScript code and return the result as a string. */
+  /**
+   * Execute JavaScript code and return the result as a string.
+   *
+   * **Security warning:** This evaluates arbitrary code. Always prefer the
+   * `"worker"` sandbox mode and never run untrusted input without review.
+   */
   async execute(code: string): Promise<string> {
     if (this.#sandbox === "worker") {
       return this.#executeInWorker(code);
