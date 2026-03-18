@@ -210,14 +210,14 @@ new NativeReAct(
 
 ## `ProgramOfThought`
 
-Generates JavaScript code, executes it in a `new Function()` context, self-corrects on errors, and returns the result.
+Generates JavaScript code, executes it in a worker-thread sandbox by default, self-corrects on errors, and returns the result.
 
-> ⚠️ **Security**: Code runs in the current process. Do NOT use with untrusted user inputs in production without an additional sandboxing layer.
+> ⚠️ **Security**: Always prefer the default `"worker"` sandbox. Never pass untrusted user input without review.
 
 ```ts
 import { ProgramOfThought } from "dstsx";
 
-// Default: "function" sandbox (same process)
+// Default: "worker" sandbox (Node.js Worker thread)
 const pot = new ProgramOfThought(
   "question -> answer",
   /* maxAttempts= */ 3,
@@ -229,25 +229,23 @@ console.log(result.get("answer")); // "55"
 console.log(result.get("code"));   // the generated JS code
 ```
 
-### Worker-thread sandbox
+### Sandbox modes
 
 ```ts
-// Worker thread isolation (Node 18+)
-const potWorker = new ProgramOfThought(
-  "question -> answer",
-  3,       // maxAttempts
-  5_000,   // timeoutMs
-  "worker" // sandbox mode
-);
-const result = await potWorker.forward({ question: "What is 2 ** 10?" });
-```
+// Worker thread isolation (Node 18+) — default
+const potWorker = new ProgramOfThought("question -> answer", 3, 5_000, "worker");
 
-### Sandbox modes
+// Run in main process (no isolation — backwards-compatible)
+const potFn = new ProgramOfThought("question -> answer", 3, 5_000, "function");
+
+// No sandbox and no timeout — fastest, do not use with untrusted code
+const potNone = new ProgramOfThought("question -> answer", 3, 5_000, "none");
+```
 
 | Mode | Isolation | True Cancellation | Notes |
 |---|---|---|---|
-| `"function"` | None — runs in main process | No | **Default.** Backwards-compatible. |
-| `"worker"` | Node.js Worker thread | Yes (terminate on timeout) | Requires Node 18+. |
+| `"worker"` | Node.js Worker thread | Yes (terminate on timeout) | **Default.** Requires Node 18+. |
+| `"function"` | None — runs in main process | No | No isolation. |
 | `"none"` | None — no timeout applied | N/A | Fastest; do not use with untrusted code. |
 
 ---
@@ -395,4 +393,143 @@ The critic calls `Predict("output -> critique, is_satisfactory")`. If `is_satisf
 
 ## `TypedPredictor` & `TypedChainOfThought`
 
-Structured JSON output with optional Zod schema validation. See [v2-features.md](./v2-features.md#typedpredictor--typedchainofthought) for full docs.
+Structured JSON output with optional Zod schema validation. `TypedPredictor` delegates all JSON formatting/parsing to `JSONAdapter` internally.
+
+```ts
+import { z } from "zod";
+import { TypedPredictor, TypedChainOfThought, settings, OpenAI } from "dstsx";
+
+settings.configure({ lm: new OpenAI({ model: "gpt-4o" }) });
+
+const AnswerSchema = z.object({
+  answer:     z.string(),
+  confidence: z.number().min(0).max(1),
+});
+
+const qa = new TypedPredictor("question -> answer", AnswerSchema, { maxRetries: 3 });
+const result = await qa.forward({ question: "What is 2 + 2?" });
+
+console.log(result.typed.answer);     // "4"
+console.log(result.typed.confidence); // 0.99 (validated number)
+```
+
+**`TypedPrediction`** — the return type of `TypedPredictor.forward()`:
+
+```ts
+class TypedPrediction<T> extends Prediction {
+  readonly typed: T; // schema-validated value
+}
+```
+
+**`TypedChainOfThought`** — same as `TypedPredictor` but prepends a `rationale` step:
+
+```ts
+const cot = new TypedChainOfThought("question -> answer", AnswerSchema);
+const result = await cot.forward({ question: "What is 7 × 6?" });
+console.log(result.typed.answer); // "42"
+```
+
+**Constructor:**
+
+```ts
+new TypedPredictor<T>(
+  signature: string | Signature,
+  schema?:   { parse: (v: unknown) => T }, // e.g. Zod schema
+  options?:  { maxRetries?: number },      // default: 3
+)
+```
+
+---
+
+## `Reasoning`
+
+Surfaces native reasoning tokens from models like o1, o3, and DeepSeek-R1. The `reasoning` field from `LMResponse` is accessible via the returned prediction.
+
+```ts
+import { Reasoning, settings, OpenAI } from "dstsx";
+
+settings.configure({ lm: new OpenAI({ model: "o3-mini" }) });
+
+const solver = new Reasoning("problem -> solution");
+const result = await solver.forward({ problem: "Prove that √2 is irrational." });
+console.log(result.get("solution"));
+```
+
+---
+
+## `CodeAct`
+
+Agent loop where actions are executable JavaScript code, with persistent session state. Each iteration generates code, executes it, inspects the result, and feeds it back until the task is complete or `maxIter` is reached.
+
+```ts
+import { CodeAct, settings, OpenAI } from "dstsx";
+import type { Tool } from "dstsx";
+
+settings.configure({ lm: new OpenAI({ model: "gpt-4o" }) });
+
+const tools: Tool[] = [
+  {
+    name:        "fetchData",
+    description: "Fetch JSON data from a URL",
+    fn:          async (url: string) => JSON.stringify(await fetch(url).then((r) => r.json())),
+  },
+];
+
+const agent = new CodeAct("task -> answer", tools, /* maxIter= */ 5);
+const result = await agent.forward({ task: "What is 15! ?" });
+console.log(result.get("answer"));
+console.log(result.get("trajectory")); // full execution history
+```
+
+**Constructor:**
+
+```ts
+new CodeAct(
+  signature: string | Signature,
+  tools?:    Tool[],             // default: []
+  maxIter?:  number,             // default: 5
+  sandbox?:  "worker" | "function" | "none", // default: "worker"
+  timeoutMs?: number,            // default: 10_000
+)
+```
+
+> ⚠️ **Security**: Code execution uses `new Function()`. Always prefer the `"worker"` sandbox mode and never run untrusted input.
+
+---
+
+## `RLM` (Reinforcement Learning Module)
+
+Samples `k` completions from the inner module and returns the highest-scoring one according to a reward function.
+
+```ts
+import { RLM, Predict, settings, OpenAI } from "dstsx";
+
+settings.configure({ lm: new OpenAI({ model: "gpt-4o" }) });
+
+const inner = new Predict("question -> answer");
+
+const rlm = new RLM(
+  inner,
+  (pred) => {
+    const answer = String(pred.get("answer") ?? "");
+    // Score based on length (example reward)
+    return answer.length > 20 ? 1 : 0;
+  },
+  /* k= */ 5,
+);
+
+const result = await rlm.forward({ question: "Explain the Pythagorean theorem." });
+
+// Get cumulative reward statistics
+rlm.reset(); // clear reward stats
+```
+
+**Constructor:**
+
+```ts
+new RLM(
+  inner:    Module,
+  rewardFn: (pred: Prediction) => number,
+  k?:       number, // default: 5
+)
+```

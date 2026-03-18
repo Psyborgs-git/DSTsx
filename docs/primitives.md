@@ -1,4 +1,4 @@
-# Primitives — Example, Prediction, Trace, Image, majority()
+# Primitives — Example, Prediction, Trace, Image, Audio, History, Code, ToolCalls, majority()
 
 ---
 
@@ -60,6 +60,7 @@ interface Trace {
   usage:      { promptTokens: number; completionTokens: number; totalTokens: number } | null;
   latencyMs:  number;
   timestamp:  string; // ISO-8601
+  reasoning?: string; // native reasoning tokens (o1/o3/DeepSeek-R1); undefined otherwise
 }
 ```
 
@@ -116,6 +117,138 @@ img.toString()                // "[Image: https://...]" — used in text prompts
 ### `ImageMimeType`
 
 Supported MIME types: `"image/jpeg"`, `"image/png"`, `"image/gif"`, `"image/webp"`
+
+---
+
+## `Audio` — Multi-modal Audio Support
+
+The `Audio` primitive enables passing audio to audio-capable LMs as field values in any `Predict` call.
+
+```ts
+import { Audio, Predict, settings, OpenAI } from "dstsx";
+
+settings.configure({ lm: new OpenAI({ model: "gpt-4o-audio-preview" }) });
+
+const transcriber = new Predict("audio, prompt -> transcription");
+
+// From a URL
+const audio1 = Audio.fromURL("https://example.com/clip.mp3");
+
+// From base64 data
+const audio2 = Audio.fromBase64(base64String, "audio/wav");
+
+// From a local file (read synchronously; MIME auto-detected from extension)
+const audio3 = Audio.fromFile("./recording.mp3");
+```
+
+### Static factory methods
+
+| Method | Description |
+|---|---|
+| `Audio.fromURL(url)` | Audio at a remote URL |
+| `Audio.fromBase64(data, mimeType?)` | Inline base64 (default: `"audio/mpeg"`) |
+| `Audio.fromFile(path, mimeType?)` | Local file read synchronously; auto-detects MIME from extension |
+
+### Serialization helpers (used by adapters internally)
+
+```ts
+audio.toOpenAIContentPart()  // { type: "input_audio", input_audio: { data, format } }
+audio.toString()             // "[Audio: https://...]" — used in text prompts
+```
+
+### `AudioMimeType`
+
+Supported MIME types: `"audio/mpeg"`, `"audio/wav"`, `"audio/ogg"`, `"audio/webm"`
+
+---
+
+## `History` — Multi-turn Conversation Context
+
+An immutable sequence of conversation turns. Pass as a field value to carry previous dialogue context into a `Predict` call.
+
+```ts
+import { History } from "dstsx";
+
+let history = new History();
+history = history.append("user", "What is the capital of France?");
+history = history.append("assistant", "Paris.");
+history = history.append("user", "And Germany?");
+
+// Keep only the last 5 turns
+const recent = history.truncate(5);
+
+// Convert to LM message format
+const messages = history.toMessages();
+// [{ role: "user", content: "..." }, { role: "assistant", content: "..." }, ...]
+
+// Serialization
+const json = history.toJSON();
+const restored = History.fromJSON(json);
+```
+
+### `Turn` interface
+
+```ts
+interface Turn {
+  role:    "user" | "assistant" | "system";
+  content: string;
+}
+```
+
+---
+
+## `Code` — Typed Code Primitive
+
+A typed code value with language metadata. Returned by `ProgramOfThought` and `CodeAct`.
+
+```ts
+import { Code } from "dstsx";
+
+const snippet = Code.from("const x = 1 + 2; return x;", "javascript");
+
+snippet.value;    // "const x = 1 + 2; return x;"
+snippet.language; // "javascript"
+snippet.toString(); // same as .value
+snippet.toJSON(); // { value: "...", language: "javascript" }
+```
+
+### Static factory
+
+```ts
+Code.from(value: string, language?: string): Code
+// language defaults to "javascript"
+```
+
+---
+
+## `ToolCalls` — Structured Tool Call Results
+
+Records tool calls made by `ReAct` and `NativeReAct` agents. Populated automatically on the returned `Prediction` as `prediction.get("toolCalls")`.
+
+```ts
+import { ToolCalls } from "dstsx";
+
+const calls = new ToolCalls([
+  { name: "search", args: { query: "capital of France" }, result: "Paris", error: undefined },
+  { name: "calculator", args: { expr: "2+2" }, result: 4, error: undefined },
+]);
+
+calls.calls;    // ReadonlyArray<ToolCallEntry>
+calls.toJSON(); // ToolCallEntry[]
+
+const restored = ToolCalls.fromJSON(calls.toJSON());
+```
+
+### `ToolCallEntry` interface
+
+```ts
+interface ToolCallEntry {
+  name:    string;
+  args:    Record<string, unknown>;
+  result:  unknown;
+  error?:  string;
+}
+```
 
 ---
 

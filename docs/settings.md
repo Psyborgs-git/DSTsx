@@ -19,6 +19,9 @@ settings.configure({
   lmConfig: { temperature: 0.0, maxTokens: 512 },
   logLevel: "warn",      // "silent" | "error" | "warn" | "info" | "debug"
   cacheDir: "./.dstsx",  // disk cache root
+  adapter:  new JSONAdapter(), // override default prompt adapter
+  embedder: new Embedder({ provider: "openai", model: "text-embedding-3-small" }),
+  onStatus: (msg) => console.log(`[${msg.type}] ${msg.text}`), // optimizer progress
 });
 ```
 
@@ -73,7 +76,27 @@ interface SettingsOptions {
   lmConfig?: LMCallConfig;
   logLevel?: "silent" | "error" | "warn" | "info" | "debug";
   cacheDir?: string;
+  adapter?:  Adapter;   // default prompt adapter (ChatAdapter if not set)
+  embedder?: Embedder;  // default embedding model
+  onStatus?: (msg: StatusMessage) => void; // callback for optimizer progress messages
 }
+```
+
+---
+
+## `settings.save(path)` and `settings.load(path)`
+
+Serialize and restore serializable settings (non-serializable values like `lm`, `rm`, and `adapter` are excluded):
+
+```ts
+import { settings } from "dstsx";
+
+// Save
+settings.configure({ logLevel: "debug", cacheDir: "./.cache" });
+settings.save("./settings.json");
+
+// Later, restore in another process
+settings.load("./settings.json");
 ```
 
 ---

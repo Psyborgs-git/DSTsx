@@ -47,10 +47,11 @@ interface LMCallConfig {
 
 ```ts
 interface LMResponse {
-  text:   string;           // primary completion
-  texts:  string[];         // all completions when n > 1
-  usage:  TokenUsage | null;
-  raw:    unknown;          // raw provider response
+  text:       string;           // primary completion
+  texts:      string[];         // all completions when n > 1
+  usage:      TokenUsage | null;
+  raw:        unknown;          // raw provider response
+  reasoning?: string;           // native reasoning tokens (o1/o3/DeepSeek-R1); undefined otherwise
 }
 ```
 
