@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { DataLoader } from "../../src/data/DataLoader.js";
 import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
@@ -7,6 +7,14 @@ const TMP_DIR = "/tmp/dstsx-test-data";
 
 describe("DataLoader", () => {
   const loader = new DataLoader();
+
+  beforeEach(() => {
+    mkdirSync(TMP_DIR, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(TMP_DIR, { recursive: true, force: true });
+  });
 
   it("fromArray creates Examples from records", () => {
     const records = [
@@ -19,7 +27,6 @@ describe("DataLoader", () => {
   });
 
   it("fromCSV loads from CSV file", () => {
-    mkdirSync(TMP_DIR, { recursive: true });
     const csvPath = join(TMP_DIR, "test.csv");
     writeFileSync(csvPath, "question,answer\nWhat is 1+1?,2\nWhat is 2+2?,4\n");
 
@@ -27,12 +34,9 @@ describe("DataLoader", () => {
     expect(examples).toHaveLength(2);
     expect(examples[0]!.get("question")).toBe("What is 1+1?");
     expect(examples[0]!.get("answer")).toBe("2");
-
-    rmSync(TMP_DIR, { recursive: true, force: true });
   });
 
   it("fromJSON loads from JSON file", () => {
-    mkdirSync(TMP_DIR, { recursive: true });
     const jsonPath = join(TMP_DIR, "test.json");
     writeFileSync(jsonPath, JSON.stringify([
       { question: "q1", answer: "a1" },
@@ -41,7 +45,5 @@ describe("DataLoader", () => {
 
     const examples = loader.fromJSON(jsonPath);
     expect(examples).toHaveLength(2);
-
-    rmSync(TMP_DIR, { recursive: true, force: true });
   });
 });

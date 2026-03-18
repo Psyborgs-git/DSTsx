@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { settings } from "../../src/settings/Settings.js";
 import { writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -9,6 +9,10 @@ describe("Settings save/load", () => {
   beforeEach(() => {
     settings.reset();
     mkdirSync(TMP_DIR, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(TMP_DIR, { recursive: true, force: true });
   });
 
   it("save writes settings to JSON file", () => {
@@ -33,6 +37,5 @@ describe("Settings save/load", () => {
     settings.reset();
     settings.load(path);
     expect(settings.logLevel).toBe("error");
-    rmSync(TMP_DIR, { recursive: true, force: true });
   });
 });
