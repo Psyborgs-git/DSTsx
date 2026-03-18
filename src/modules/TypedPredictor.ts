@@ -2,6 +2,10 @@ import { Predict } from "./Predict.js";
 import { Prediction } from "../primitives/index.js";
 import { Signature } from "../signatures/index.js";
 import type { FieldMeta } from "../signatures/index.js";
+import { JSONAdapter } from "../adapters/JSONAdapter.js";
+
+/** Shared JSONAdapter instance used by TypedPredictor for JSON formatting/parsing. */
+const jsonAdapter = new JSONAdapter();
 
 /**
  * A Prediction that additionally carries a typed `.typed` field.
@@ -20,9 +24,11 @@ export class TypedPrediction<T = unknown> extends Prediction {
 }
 
 /**
- * TypedPredictor — like Predict but appends JSON formatting instructions and
- * parses the completion as JSON.  If an optional schema is provided,
- * validates and returns `.typed`.
+ * TypedPredictor — like Predict but uses {@link JSONAdapter} to instruct the
+ * LM to respond with a JSON object and parses the completion accordingly.
+ * If an optional schema (e.g. Zod) is provided, validates and returns `.typed`.
+ *
+ * Delegates all JSON formatting/parsing to JSONAdapter — no inline JSON logic.
  */
 export class TypedPredictor<T = unknown> extends Predict {
   readonly #schema: { parse: (v: unknown) => T } | undefined;
@@ -39,74 +45,63 @@ export class TypedPredictor<T = unknown> extends Predict {
   }
 
   override async forward(inputs: Record<string, unknown>): Promise<TypedPrediction<T>> {
-    const origInstructions = this.instructions;
-    const jsonSuffix = "\n\nRespond with a JSON object matching the output schema.";
-    this.instructions = (origInstructions ?? "") + jsonSuffix;
-
     let lastError: unknown;
-    try {
-      for (let attempt = 0; attempt <= this.#maxRetries; attempt++) {
-        try {
-          const prediction = await super.forward(inputs);
-          const dict = prediction.toDict() as Record<string, unknown>;
 
-          // Try each output field's value as potential JSON source
-          let parsed: unknown;
-          let found = false;
-          let lastParseError: unknown;
-          for (const key of this.signature.outputs.keys()) {
-            const val = dict[key];
-            if (typeof val === "string" && val.length > 0) {
-              try {
-                parsed = TypedPredictor.#parseJSON(val);
-                found = true;
-                break;
-              } catch (parseErr) {
-                lastParseError = parseErr;
-              }
-            }
+    for (let attempt = 0; attempt <= this.#maxRetries; attempt++) {
+      try {
+        const prediction = await super.forward(inputs);
+        const dict = prediction.toDict() as Record<string, unknown>;
+
+        // Delegate JSON parsing to JSONAdapter
+        let parsed: Record<string, unknown>;
+        const rawValues: string[] = [];
+        for (const key of this.signature.outputs.keys()) {
+          const val = dict[key];
+          if (typeof val === "string" && val.length > 0) {
+            rawValues.push(val);
           }
-
-          if (!found) {
-            if (lastParseError !== undefined) {
-              // Had non-empty string field(s) but none parsed as JSON
-              throw lastParseError;
-            }
-            // No string field values — fall back to the dict (e.g. multi-field with empty results)
-            parsed = dict;
-          }
-
-          let typed: T;
-          if (this.#schema) {
-            typed = this.#schema.parse(parsed);
-          } else {
-            typed = parsed as T;
-          }
-
-          return new TypedPrediction<T>(
-            dict,
-            typed,
-            prediction.completions as Record<string, unknown>[],
-          );
-        } catch (err) {
-          lastError = err;
-          // continue to next attempt
         }
+
+        if (rawValues.length > 0) {
+          // Try each raw output value through JSONAdapter.parse()
+          let jsonParsed = false;
+          for (const raw of rawValues) {
+            try {
+              parsed = jsonAdapter.parse(this.signature, raw);
+              jsonParsed = true;
+              break;
+            } catch {
+              // continue to next value
+            }
+          }
+          if (!jsonParsed) {
+            // Final fallback: try the full concatenated text
+            parsed = jsonAdapter.parse(this.signature, rawValues.join("\n"));
+          }
+        } else {
+          // No string output fields — use the dict as-is
+          parsed = dict;
+        }
+
+        let typed: T;
+        if (this.#schema) {
+          typed = this.#schema.parse(parsed!);
+        } else {
+          typed = parsed! as T;
+        }
+
+        return new TypedPrediction<T>(
+          dict,
+          typed,
+          prediction.completions as Record<string, unknown>[],
+        );
+      } catch (err) {
+        lastError = err;
+        // continue to next attempt
       }
-    } finally {
-      this.instructions = origInstructions;
     }
 
     throw lastError;
-  }
-
-  static #parseJSON(raw: unknown): unknown {
-    if (typeof raw !== "string") return raw;
-    let text = raw.trim();
-    // Strip markdown code fences
-    const fence = /^```(?:json)?\s*([\s\S]*?)\s*```$/m.exec(text);
-    if (fence) text = (fence[1] ?? "").trim();
-    return JSON.parse(text);
   }
 }
 
