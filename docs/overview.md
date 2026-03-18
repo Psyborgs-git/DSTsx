@@ -79,17 +79,21 @@ console.log(result.get("answer")); // "Paris"
 |---|---|
 | [overview.md](./overview.md) | Installation, quick start, core concepts (this file) |
 | [signatures.md](./signatures.md) | `Signature`, `InputField`, `OutputField`, `FieldMeta` |
-| [primitives.md](./primitives.md) | `Example`, `Prediction`, `Trace`, `Image`, `majority()` |
+| [primitives.md](./primitives.md) | `Example`, `Prediction`, `Trace`, `Image`, `Audio`, `History`, `Code`, `ToolCalls`, `majority()` |
 | [lm-adapters.md](./lm-adapters.md) | LM adapters, `LMCallConfig`, `LMResponse`, streaming, cache |
-| [settings.md](./settings.md) | `settings.configure()`, `settings.context()`, `SettingsOptions` |
-| [modules.md](./modules.md) | `Predict`, `ChainOfThought`, `ReAct`, `ProgramOfThought`, and more |
+| [adapters.md](./adapters.md) | Prompt adapters: `Adapter`, `ChatAdapter`, `JSONAdapter`, `TwoStepAdapter` |
+| [settings.md](./settings.md) | `settings.configure()`, `settings.context()`, `settings.save()`/`load()`, `SettingsOptions` |
+| [modules.md](./modules.md) | `Predict`, `ChainOfThought`, `ReAct`, `CodeAct`, `Reasoning`, `RLM`, `ProgramOfThought`, and more |
 | [retrievers.md](./retrievers.md) | `ColBERTv2`, `PineconeRM`, `ChromadbRM`, and other backends |
-| [optimizers.md](./optimizers.md) | `BootstrapFewShot`, `COPRO`, `MIPRO`, `GRPO`, `SIMBA`, and more |
-| [evaluate.md](./evaluate.md) | `evaluate()`, built-in metrics (`exactMatch`, `f1`, etc.) |
+| [optimizers.md](./optimizers.md) | `BootstrapFewShot`, `COPRO`, `MIPROv2`, `GEPA`, `BetterTogether`, `InferRules`, `GRPO`, `SIMBA`, and more |
+| [evaluate.md](./evaluate.md) | `evaluate()`, `SemanticF1`, `CompleteAndGrounded`, built-in metrics |
 | [assertions.md](./assertions.md) | `Assert`, `Suggest`, `AssertionError`, `Retry` pattern |
-| [v2-features.md](./v2-features.md) | v2 APIs: TypedPredictor, Parallel, Refine, NativeReAct, Image, etc. |
 | [tracking.md](./tracking.md) | `ConsoleTracker`, `JsonFileTracker`, custom `Tracker` |
 | [mcp.md](./mcp.md) | `MCPToolAdapter`, `DSTsxMCPServer` |
+| [models.md](./models.md) | `Embedder` — first-class embedding model |
+| [tools.md](./tools.md) | `JSInterpreter`, `Embeddings` — in-memory vector store |
+| [data.md](./data.md) | `DataLoader` — CSV, JSON, array → `Example[]` |
+| [utilities.md](./utilities.md) | `streamify`, `asyncify`, `inspectHistory`, `load`, `configureCache`, `StatusMessage`, `StreamListener`, logging |
 | [examples.md](./examples.md) | End-to-end code examples |
 
 ---

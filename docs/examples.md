@@ -239,3 +239,121 @@ class QA extends Module {
 const optimizer = new GRPO({ numSteps: 10, groupSize: 4 });
 const optimized = await optimizer.compile(new QA(), trainset, exactMatch("answer"));
 ```
+
+---
+
+## 11. MIPROv2 Optimizer
+
+```ts
+import {
+  MIPROv2, settings, OpenAI, Predict, Module,
+  Example, evaluate, exactMatch, type Prediction,
+} from "dstsx";
+
+settings.configure({ lm: new OpenAI({ model: "gpt-4o-mini" }) });
+
+class QA extends Module {
+  predict = new Predict("question -> answer");
+  async forward(inputs: { question: string }): Promise<Prediction> {
+    return this.predict.forward(inputs);
+  }
+}
+
+const trainset = [
+  new Example({ question: "What is 6 × 7?", answer: "42" }),
+  new Example({ question: "What is 8 × 8?", answer: "64" }),
+  new Example({ question: "What is 9 × 9?", answer: "81" }),
+];
+
+// "medium" preset: 10 candidates, 25 Bayesian trials
+const optimizer = new MIPROv2({ auto: "medium", verbose: true });
+const optimized = await optimizer.compile(new QA(), trainset, exactMatch("answer"));
+
+const score = await evaluate(optimized, trainset, exactMatch("answer"));
+console.log(`Score: ${(score.score * 100).toFixed(1)}%`);
+```
+
+---
+
+## 12. CodeAct Agent
+
+```ts
+import { CodeAct, settings, OpenAI, type Tool } from "dstsx";
+
+settings.configure({ lm: new OpenAI({ model: "gpt-4o" }) });
+
+const tools: Tool[] = [
+  {
+    name:        "fetchJSON",
+    description: "Fetch JSON from a URL and return it as a string",
+    fn:          async (url: string) =>
+      JSON.stringify(await fetch(url).then((r) => r.json())),
+  },
+];
+
+const agent = new CodeAct("task -> answer", tools, /* maxIter= */ 5);
+const result = await agent.forward({ task: "Compute the 15th Fibonacci number." });
+console.log(result.get("answer"));
+console.log(result.get("trajectory")); // full execution history
+```
+
+---
+
+## 13. SemanticF1 Metric for RAG Evaluation
+
+```ts
+import {
+  SemanticF1, evaluate, settings, OpenAI,
+  Module, Retrieve, ChainOfThought, ColBERTv2, type Prediction,
+} from "dstsx";
+
+settings.configure({
+  lm: new OpenAI({ model: "gpt-4o" }),
+  rm: new ColBERTv2("http://localhost:8893"),
+});
+
+class RAG extends Module {
+  retrieve = new Retrieve(3);
+  generate = new ChainOfThought("context, question -> answer");
+
+  async forward(inputs: { question: string }): Promise<Prediction> {
+    const { passages } = (await this.retrieve.forward(inputs.question)).toDict() as { passages: string[] };
+    return this.generate.forward({ context: passages.join("\n"), question: inputs.question });
+  }
+}
+
+const rag = new RAG();
+const sf1 = new SemanticF1({ threshold: 0.5 });
+
+const result = await evaluate(rag, devset, sf1.asMetricFn());
+console.log(`SemanticF1: ${(result.score * 100).toFixed(1)}%`);
+```
+
+---
+
+## 14. Loading Data with DataLoader
+
+```ts
+import {
+  DataLoader, BootstrapFewShot, exactMatch,
+  settings, OpenAI, Predict, Module, type Prediction,
+} from "dstsx";
+
+settings.configure({ lm: new OpenAI({ model: "gpt-4o-mini" }) });
+
+class QA extends Module {
+  predict = new Predict("question -> answer");
+  async forward(inputs: { question: string }): Promise<Prediction> {
+    return this.predict.forward(inputs);
+  }
+}
+
+const loader   = new DataLoader();
+const trainset = loader.fromCSV("./data/train.csv");
+const valset   = loader.fromCSV("./data/val.csv");
+
+console.log(`Loaded ${trainset.length} training examples`);
+
+const optimizer = new BootstrapFewShot({ maxBootstrappedDemos: 4 });
+const optimized = await optimizer.compile(new QA(), trainset, exactMatch("answer"));
+```

@@ -103,20 +103,67 @@ const optimized = await optimizer.compile(program, trainset, metric);
 
 ---
 
-## `MIPRO` (Multi-stage Instruction Prompt Optimizer)
+## `MIPRO` _(deprecated)_
 
-Combines COPRO-style instruction proposals with `BootstrapFewShotWithRandomSearch` to jointly optimize instructions _and_ demonstrations.
+> **Deprecated.** `MIPRO` is now an alias for `MIPROv2`. Use `MIPROv2` directly. `MIPRO` will be removed in a future release.
 
 ```ts
-import { MIPRO } from "dstsx";
+import { MIPRO } from "dstsx"; // deprecated alias — use MIPROv2 instead
+```
 
-const optimizer = new MIPRO({
-  numCandidates:        5,   // instruction candidates per predictor
-  initTemperature:      0.9,
-  numCandidatePrograms: 8,   // demo subsets to evaluate
-  verbose:              true,
-});
+---
 
+## `MIPROv2` (Multi-stage Instruction Prompt Optimizer v2)
+
+Combines grounded instruction proposals with Bayesian (TPE) search and auto budget presets. The recommended optimizer for most use cases.
+
+```ts
+import { MIPROv2 } from "dstsx";
+
+// Auto preset — recommended
+const optimizer = new MIPROv2({ auto: "medium" });
+const optimized = await optimizer.compile(program, trainset, metric);
+```
+
+**Auto budget presets:**
+
+| Preset | `numCandidates` | `numTrials` | `minibatchSize` |
+|---|---|---|---|
+| `"light"` | 5 | 10 | 25 |
+| `"medium"` | 10 | 25 | 50 |
+| `"heavy"` | 20 | 50 | 100 |
+
+**Full options:**
+
+```ts
+new MIPROv2({
+  auto?:                   "light" | "medium" | "heavy" | "none", // default: "none"
+  numCandidates?:          number,  // instruction candidates per predictor (default: 5)
+  initTemperature?:        number,  // sampling temperature (default: 0.9)
+  maxBootstrappedDemos?:   number,  // default: 3
+  maxLabeledDemos?:        number,  // default: 3
+  numTrials?:              number,  // Bayesian search trials (default: 10)
+  minibatchSize?:          number,  // mini-batch size for fast evaluation (default: 25)
+  minibatchFullEvalSteps?: number,  // full eval every N steps (default: 5)
+  trackStats?:             boolean, // default: false
+  verbose?:                boolean, // default: false
+  teacher?:                Module,  // optional teacher program
+  valset?:                 Example[], // optional held-out validation set
+})
+```
+
+**How it works:** (1) Bootstraps a few demonstration traces using the student or teacher. (2) Generates `numCandidates` grounded instruction proposals per predictor using the LM. (3) Runs `numTrials` iterations of TPE-guided Bayesian search over candidate combinations, evaluating on mini-batches. (4) Performs a full validation eval on the top-k candidates and returns the best.
+
+---
+
+## `BootstrapRS`
+
+Alias for `BootstrapFewShotWithRandomSearch`. Provided for brevity.
+
+```ts
+import { BootstrapRS } from "dstsx";
+
+const optimizer = new BootstrapRS({ maxBootstrappedDemos: 4, numCandidatePrograms: 8 });
 const optimized = await optimizer.compile(program, trainset, metric);
 ```
 
@@ -276,6 +323,90 @@ const optimized = await optimizer.compile(program, trainset, metric);
 |---|---|---|
 | `numAvatars` | `number` | `4` |
 | `maxLabeledDemos` | `number` | `8` |
+
+---
+
+## `GEPA` (Genetic-Pareto Prompt Optimizer)
+
+Uses LM self-reflection to evolve prompts with Pareto-optimal selection across multiple objectives (e.g. accuracy and conciseness). Supports `{ score, feedback }` metric results for guided refinement.
+
+```ts
+import { GEPA } from "dstsx";
+
+const optimizer = new GEPA({
+  numSteps:        20, // evolution iterations
+  groupSize:        8, // candidates per generation
+  temperature:     1.0,
+  feedbackEnabled: true, // use LM self-reflection feedback
+});
+
+const optimized = await optimizer.compile(program, trainset, metric);
+```
+
+**Options:**
+
+| Option | Type | Default |
+|---|---|---|
+| `numSteps` | `number` | `20` |
+| `groupSize` | `number` | `8` |
+| `temperature` | `number` | `1.0` |
+| `feedbackEnabled` | `boolean` | `true` |
+| `valset` | `Example[]` | — (uses trainset) |
+
+**How it works:** Maintains a population of instruction candidates. Each step generates `groupSize` mutated variants using the LM, evaluates all candidates, and selects the Pareto-optimal frontier (best score ± diversity). When `feedbackEnabled` is true, the metric's `feedback` string (from `{ score, feedback }` returns) is fed back into the mutation prompt.
+
+---
+
+## `BetterTogether`
+
+Chains a prompt optimizer and a fine-tuning optimizer in sequence. Each stage's output becomes the next stage's student program.
+
+```ts
+import { BetterTogether, MIPROv2, BootstrapFinetune } from "dstsx";
+
+const optimizer = new BetterTogether({
+  promptOptimizer:   new MIPROv2({ auto: "light" }),
+  finetuneOptimizer: new BootstrapFinetune({ exportPath: "./ft_data.jsonl" }),
+  sequence:          ["prompt", "finetune", "prompt"], // default
+});
+
+const optimized = await optimizer.compile(program, trainset, metric);
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `promptOptimizer` | `Optimizer` | required | Optimizer for prompt/demo tuning |
+| `finetuneOptimizer` | `Optimizer` | required | Optimizer for fine-tuning |
+| `sequence` | `Array<"prompt" \| "finetune">` | `["prompt","finetune","prompt"]` | Execution order |
+
+---
+
+## `InferRules`
+
+Analyzes successful and failed training examples, then asks the LM to extract explicit rules and appends them to each predictor's instructions.
+
+```ts
+import { InferRules } from "dstsx";
+
+const optimizer = new InferRules({
+  numRules: 5,      // rules to extract per predictor
+  verbose:  true,   // log progress
+});
+
+const optimized = await optimizer.compile(program, trainset, metric);
+// Each Predict in `optimized` now has auto-inferred rules appended to its instructions
+```
+
+**Options:**
+
+| Option | Type | Default |
+|---|---|---|
+| `numRules` | `number` | `5` |
+| `verbose` | `boolean` | `false` |
+
+**How it works:** Runs the student on the training set and classifies each result as a success (score > 0.5) or failure. Sends the success and failure examples to the LM with a prompt asking it to extract `numRules` actionable rules. The rules are appended to the instructions of every `Predict` predictor in a clone of the student.
 
 ---
 
