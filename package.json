@@ -1,6 +1,6 @@
 {
   "name": "@jaex/dstsx",
-  "version": "0.1.21",
+  "version": "0.1.3",
   "description": "A 1:1 TypeScript alternative to DSPy — Declarative Self-improving Language Programs",
   "type": "module",
   "main": "./dist/index.cjs",
