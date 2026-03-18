@@ -53,7 +53,7 @@ export class TypedPredictor<T = unknown> extends Predict {
         const dict = prediction.toDict() as Record<string, unknown>;
 
         // Delegate JSON parsing to JSONAdapter
-        let parsed: Record<string, unknown>;
+        let parsed: Record<string, unknown> = dict;
         const rawValues: string[] = [];
         for (const key of this.signature.outputs.keys()) {
           const val = dict[key];
@@ -75,19 +75,19 @@ export class TypedPredictor<T = unknown> extends Predict {
             }
           }
           if (!jsonParsed) {
-            // Final fallback: try the full concatenated text
+            // Concatenation fallback: handles the rare case where a single
+            // JSON object was split across multiple output field values by
+            // the LM's field-based parsing. If this also fails, the outer
+            // catch retries the entire attempt.
             parsed = jsonAdapter.parse(this.signature, rawValues.join("\n"));
           }
-        } else {
-          // No string output fields — use the dict as-is
-          parsed = dict;
         }
 
         let typed: T;
         if (this.#schema) {
-          typed = this.#schema.parse(parsed!);
+          typed = this.#schema.parse(parsed);
         } else {
-          typed = parsed! as T;
+          typed = parsed as T;
         }
 
         return new TypedPrediction<T>(
