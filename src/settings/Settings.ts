@@ -1,7 +1,11 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { readFileSync, writeFileSync } from "node:fs";
 import type { LM } from "../lm/index.js";
 import type { LMCallConfig } from "../lm/types.js";
 import type { Retriever } from "../retrieve/index.js";
+import type { Adapter } from "../adapters/Adapter.js";
+import type { Embedder } from "../models/Embedder.js";
+import type { StatusMessage } from "../utils/StatusMessage.js";
 
 /** Configuration options for the global DSTsx settings. */
 export interface SettingsOptions {
@@ -15,6 +19,12 @@ export interface SettingsOptions {
   logLevel?: "silent" | "error" | "warn" | "info" | "debug";
   /** Directory for caching compiled programs (JSON). */
   cacheDir?: string;
+  /** Default prompt adapter. */
+  adapter?: Adapter;
+  /** Default embedding model. */
+  embedder?: Embedder;
+  /** Status message callback (convenience shorthand). */
+  onStatus?: ((msg: StatusMessage) => void) | undefined;
 }
 
 /**
@@ -80,6 +90,14 @@ export class Settings {
     return this.#current.cacheDir;
   }
 
+  get adapter(): Adapter | undefined {
+    return this.#current.adapter;
+  }
+
+  get embedder(): Embedder | undefined {
+    return this.#current.embedder;
+  }
+
   // ---------------------------------------------------------------------------
   // Mutation
   // ---------------------------------------------------------------------------
@@ -124,6 +142,28 @@ export class Settings {
   async context<T>(overrides: SettingsOptions, fn: () => Promise<T>): Promise<T> {
     const merged = { ...this.#global, ...overrides };
     return contextStore.run(merged, fn);
+  }
+
+  /** Serialize current settings to a JSON file (LM/RM/adapter excluded — not serializable). */
+  save(path: string): void {
+    const state: Record<string, unknown> = {
+      logLevel: this.logLevel,
+      cacheDir: this.cacheDir,
+    };
+    writeFileSync(path, JSON.stringify(state, null, 2), "utf-8");
+  }
+
+  /** Restore settings from a JSON file. */
+  load(path: string): void {
+    const data = readFileSync(path, "utf-8");
+    const state = JSON.parse(data) as Record<string, unknown>;
+    if (typeof state["logLevel"] === "string") {
+      const lvl = state["logLevel"] as "silent" | "error" | "warn" | "info" | "debug";
+      this.configure({ logLevel: lvl });
+    }
+    if (typeof state["cacheDir"] === "string") {
+      this.configure({ cacheDir: state["cacheDir"] });
+    }
   }
 }
 

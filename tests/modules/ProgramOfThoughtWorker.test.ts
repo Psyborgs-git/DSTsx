@@ -6,9 +6,9 @@ import { settings } from "../../src/settings/Settings.js";
 describe("ProgramOfThought sandbox modes", () => {
   beforeEach(() => settings.reset());
 
-  it("has sandbox property (default: 'function')", () => {
+  it("has sandbox property (default: 'worker')", () => {
     const pot = new ProgramOfThought("question -> answer");
-    expect(pot.sandbox).toBe("function");
+    expect(pot.sandbox).toBe("worker");
   });
 
   it("accepts sandbox: 'none'", () => {

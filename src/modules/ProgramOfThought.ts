@@ -25,7 +25,7 @@ export class ProgramOfThought extends Module {
   readonly #corrector: Predict;
   readonly #outputKey: string;
 
-  constructor(signature: string | Signature, maxAttempts = 3, timeoutMs = 5_000, sandbox: "worker" | "function" | "none" = "function") {
+  constructor(signature: string | Signature, maxAttempts = 3, timeoutMs = 5_000, sandbox: "worker" | "function" | "none" = "worker") {
     super();
     this.maxAttempts = maxAttempts;
     this.timeoutMs = timeoutMs;
