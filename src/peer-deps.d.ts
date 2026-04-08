@@ -52,3 +52,8 @@ declare module "@modelcontextprotocol/sdk/server/index.js" {
 declare module "@modelcontextprotocol/sdk/server/stdio.js" {
   export const StdioServerTransport: any;
 }
+
+declare module "@aws-sdk/client-bedrock-runtime" {
+  export const BedrockRuntimeClient: any;
+  export const ConverseCommand: any;
+}

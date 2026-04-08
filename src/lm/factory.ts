@@ -25,6 +25,7 @@ import { HuggingFace } from "./adapters/HuggingFace.js";
 import { AzureOpenAI } from "./adapters/AzureOpenAI.js";
 import { TogetherAI } from "./adapters/TogetherAI.js";
 import { Groq } from "./adapters/Groq.js";
+import { AWSBedrock } from "./adapters/AWSBedrock.js";
 
 LM.registerProvider("openai", (model, opts) => new OpenAI({ ...(model ? { model } : {}), ...opts }));
 LM.registerProvider("anthropic", (model, opts) => new Anthropic({ ...(model ? { model } : {}), ...opts }));
@@ -40,6 +41,8 @@ LM.registerProvider("azure_openai", (model, opts) => new AzureOpenAI({ ...(model
 LM.registerProvider("together", (model, opts) => new TogetherAI({ ...(model ? { model } : {}), ...opts }));
 LM.registerProvider("together_ai", (model, opts) => new TogetherAI({ ...(model ? { model } : {}), ...opts }));
 LM.registerProvider("groq", (model, opts) => new Groq({ ...(model ? { model } : {}), ...opts }));
+LM.registerProvider("bedrock", (model, opts) => new AWSBedrock({ ...(model ? { model } : {}), ...opts }));
+LM.registerProvider("aws_bedrock", (model, opts) => new AWSBedrock({ ...(model ? { model } : {}), ...opts }));
 
 /**
  * Convenience function — mirrors Python's `dspy.LM("provider/model")`.

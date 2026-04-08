@@ -1,6 +1,6 @@
 import { LRUCache } from "./cache.js";
 import { DiskCache } from "./DiskCache.js";
-import type { LMCallConfig, LMResponse, Message, StreamChunk } from "./types.js";
+import type { LMCallConfig, LMCallRecord, LMResponse, Message, StreamChunk } from "./types.js";
 
 /**
  * Options accepted by the {@link LM.from} unified factory.
@@ -54,6 +54,11 @@ export abstract class LM {
   #diskCache: DiskCache | undefined;
   #requestCount = 0;
   #tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, cachedPromptTokens: 0 };
+
+  /** Bounded ring buffer of the last {@link LM.historySize} call records. */
+  readonly #history: LMCallRecord[] = [];
+  /** Maximum number of call records to keep in memory (default 50). */
+  #historySize = 50;
 
   // ---------------------------------------------------------------------------
   // Static provider registry — powers LM.from()
@@ -162,6 +167,14 @@ export abstract class LM {
         this.#tokenUsage.cachedPromptTokens += response.usage.cachedPromptTokens;
       }
     }
+
+    // Record in history buffer
+    const record: LMCallRecord = { prompt, config, response, timestamp: Date.now() };
+    this.#history.push(record);
+    if (this.#history.length > this.#historySize) {
+      this.#history.shift();
+    }
+
     return response;
   }
 
@@ -173,6 +186,37 @@ export abstract class LM {
   /** Accumulated token usage across all (non-cached) calls. */
   get tokenUsage(): Readonly<{ promptTokens: number; completionTokens: number; totalTokens: number; cachedPromptTokens: number }> {
     return { ...this.#tokenUsage };
+  }
+
+  /**
+   * Configure how many call records to retain in the history buffer.
+   *
+   * @param size - Maximum number of records (default 50; minimum 1).
+   */
+  setHistorySize(size: number): void {
+    this.#historySize = Math.max(1, size);
+    // Trim if needed
+    while (this.#history.length > this.#historySize) {
+      this.#history.shift();
+    }
+  }
+
+  /**
+   * Return the last `n` LM call records.
+   *
+   * Each record includes the prompt, config, response, and timestamp of a
+   * non-cached call.  Calls served from cache are **not** recorded.
+   *
+   * @param n - Number of records to return.  Defaults to all records.
+   */
+  getHistory(n?: number): LMCallRecord[] {
+    if (n === undefined) return [...this.#history];
+    return this.#history.slice(-Math.abs(n));
+  }
+
+  /** Clear the call history buffer. */
+  clearHistory(): void {
+    this.#history.length = 0;
   }
 
   /** Clear the in-memory response cache. */

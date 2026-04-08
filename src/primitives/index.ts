@@ -14,3 +14,4 @@ export { Code } from "./Code.js";
 export { ToolCalls } from "./ToolCalls.js";
 export type { ToolCallEntry } from "./ToolCalls.js";
 export { Parameter } from "./Parameter.js";
+export { Document } from "./Document.js";

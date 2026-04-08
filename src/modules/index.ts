@@ -22,3 +22,4 @@ export { CodeAct } from "./CodeAct.js";
 export { Reasoning } from "./Reasoning.js";
 export { RLM } from "./RLM.js";
 export { functional, FunctionalModule } from "./functional.js";
+export { Citations } from "./Citations.js";
