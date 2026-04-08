@@ -228,7 +228,7 @@ export class Tool {
         .trim()
         .replace(/^\.\.\./u, "")    // rest parameters (...args)
         .replace(/[:=].*$/su, "")   // default values (a = 1) and TS type annotations (a: string)
-        .replace(/[{[.\]]/gu, "")   // destructuring patterns
+        .replace(/[{[\].]/gu, "")   // destructuring patterns (note: '.' is a literal dot here)
         .trim();
       if (!name || !identRe.test(name)) continue;
       args[name] = { type: "string", required: true };

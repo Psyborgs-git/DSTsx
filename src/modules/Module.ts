@@ -136,9 +136,11 @@ export abstract class Module {
     const cloned = Object.create(Object.getPrototypeOf(this) as object) as this;
     for (const key of Object.keys(this)) {
       const value = (this as Record<string, unknown>)[key];
-      if (value instanceof Module) {
+      // Parameter check MUST precede Module check in case a future subclass
+      // of Parameter also extends Module.
+      if (value instanceof Parameter) {
         (cloned as Record<string, unknown>)[key] = value.clone();
-      } else if (value instanceof Parameter) {
+      } else if (value instanceof Module) {
         (cloned as Record<string, unknown>)[key] = value.clone();
       } else if (Array.isArray(value)) {
         (cloned as Record<string, unknown>)[key] = [...(value as unknown[])];

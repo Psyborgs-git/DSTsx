@@ -42,11 +42,13 @@ export function syncify<TArgs extends unknown[], TReturn>(
       },
     );
 
-    // If the promise was already synchronously resolved (e.g. returned a
-    // resolved value, or the function is mocked), the .then() callbacks will
-    // have fired synchronously via the microtask queue flush that happens
-    // before this line in V8 (for already-settled promises this is guaranteed).
-    // For truly async promises we emit a warning and return undefined.
+    // In JavaScript, Promise .then() callbacks are *always* asynchronous — they
+    // are queued as microtasks and never run synchronously, even for already-settled
+    // promises.  This means `resolved` will be false here in virtually all cases in
+    // Node.js.  syncify() documents this fundamental limitation: it only succeeds
+    // when the runtime provides a mechanism to drain the microtask queue synchronously
+    // (e.g., inside a Worker thread or a native addon).  On the main thread it
+    // emits a warning and returns `undefined` rather than silently hanging.
     if (!resolved) {
       // eslint-disable-next-line no-console
       console.warn(

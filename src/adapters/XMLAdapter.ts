@@ -103,9 +103,12 @@ export class XMLAdapter extends Adapter {
   }
 
   #unescapeXml(text: string): string {
-    // NOTE: &amp; must be unescaped LAST to prevent double-unescaping.
-    // e.g. "&amp;lt;" → "&lt;" → "<" if &amp; was first; correct behavior requires
-    // processing other entities before &amp;.
+    // IMPORTANT: &amp; must be unescaped LAST.
+    // If it were unescaped first, an already-decoded '&' would be left in the
+    // string and could appear to be the start of an entity sequence on the next
+    // replacement pass — e.g. '&amp;lt;' → '&lt;' (unintended extra decode).
+    // By processing all other entities first, we ensure '&amp;' is only ever
+    // treated as a literal encoded ampersand that becomes a single '&'.
     return text
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
