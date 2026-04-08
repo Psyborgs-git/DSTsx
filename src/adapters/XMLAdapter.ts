@@ -20,6 +20,20 @@ import type { Message } from "../lm/types.js";
  * ```
  */
 export class XMLAdapter extends Adapter {
+  /** Cache of compiled tag-matching regexes, keyed by field name. */
+  readonly #tagRegexCache = new Map<string, RegExp>();
+
+  /** Return or create a compiled regex for matching `<fieldName>…</fieldName>`. */
+  #getTagRegex(name: string): RegExp {
+    let re = this.#tagRegexCache.get(name);
+    if (!re) {
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      re = new RegExp(`<${escaped}[^>]*>([\\s\\S]*?)<\\/${escaped}>`, "i");
+      this.#tagRegexCache.set(name, re);
+    }
+    return re;
+  }
+
   format(sig: Signature, demos: Example[], inputs: Record<string, unknown>): Message[] {
     const messages: Message[] = [];
 
@@ -75,9 +89,7 @@ export class XMLAdapter extends Adapter {
     const result: Record<string, unknown> = {};
 
     for (const [name] of sig.outputs) {
-      // Match both self-closing and regular tags, greedy or non-greedy content
-      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const tagRegex = new RegExp(`<${escaped}[^>]*>([\\s\\S]*?)<\\/${escaped}>`, "i");
+      const tagRegex = this.#getTagRegex(name);
       const match = tagRegex.exec(output);
       if (match) {
         result[name] = this.#unescapeXml(match[1]?.trim() ?? "");

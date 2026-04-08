@@ -12,6 +12,9 @@ export interface ToolArgDef {
   required?: boolean;
 }
 
+/** Valid JS identifier pattern — anchored, no backtracking. Module-level constant to avoid re-compilation. */
+const IDENT_RE = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+
 /**
  * Options for the {@link Tool} constructor.
  */
@@ -220,8 +223,6 @@ export class Tool {
     if (!params) return {};
 
     const args: Record<string, ToolArgDef> = {};
-    // Valid JS identifier pattern — anchored, no backtracking
-    const identRe = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 
     for (const raw of params.split(",")) {
       const name = raw
@@ -230,7 +231,7 @@ export class Tool {
         .replace(/[:=].*$/su, "")   // default values (a = 1) and TS type annotations (a: string)
         .replace(/[{[\].]/gu, "")   // destructuring patterns (note: '.' is a literal dot here)
         .trim();
-      if (!name || !identRe.test(name)) continue;
+      if (!name || !IDENT_RE.test(name)) continue;
       args[name] = { type: "string", required: true };
     }
 

@@ -43,8 +43,7 @@ export interface DocumentRetrieverOptions {
  * // ["TypeScript is a typed superset of JavaScript."]
  * ```
  */
-export class DocumentRetriever extends Retriever {
-  #documents: Document[] = [];
+export class DocumentRetriever extends Retriever {  #documents: Document[] = [];
   readonly #searchField: "body" | "title" | "all";
 
   constructor(options: DocumentRetrieverOptions = {}) {
@@ -135,14 +134,12 @@ export class DocumentRetriever extends Retriever {
 
   /** Lowercase word-boundary tokenizer — letters and digits only. */
   static #tokenize(text: string): string[] {
-    const tokens: string[] = [];
-    // Extract sequences of word characters, then lowercase
-    const re = /\w+/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) {
-      tokens.push(m[0]!.toLowerCase());
-    }
-    return tokens;
+    // String.prototype.match with /g returns all matches as an array.
+    // Using match() avoids the stateful lastIndex issue of a module-level
+    // regex with the /g flag, while still avoiding per-call regex compilation.
+    const matches = text.match(/\w+/g);
+    if (!matches) return [];
+    return matches.map((t) => t.toLowerCase());
   }
 
   /** Term-frequency score: sum of per-query-token occurrence counts in doc. */

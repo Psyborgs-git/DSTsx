@@ -1,5 +1,5 @@
 /**
- * End-to-end integration tests for features added in Phases 1–3.
+ * End-to-end integration tests for features added in Phases 1–4.
  *
  * These tests combine multiple new features together to verify they work
  * cohesively in realistic pipeline scenarios.

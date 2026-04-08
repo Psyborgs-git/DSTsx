@@ -29,6 +29,8 @@ export interface AWSBedrockOptions {
    * Bedrock model ID (e.g. `"anthropic.claude-3-5-sonnet-20241022-v2:0"`).
    * Cross-region inference profile ARNs are also supported.
    * Defaults to `"anthropic.claude-3-haiku-20240307-v1:0"`.
+   *
+   * @default "anthropic.claude-3-haiku-20240307-v1:0"
    */
   model?: string;
   /**

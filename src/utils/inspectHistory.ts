@@ -35,6 +35,10 @@ export interface InspectHistoryOptions {
  * Mirrors `dspy.inspect_history` in Python, with additional filtering and
  * formatting options.
  *
+ * @param options - Either an {@link InspectHistoryOptions} object or a number
+ *   (the legacy API).  Passing a number directly is **deprecated** — prefer
+ *   `inspectHistory({ n: 3 })` for clarity.
+ *
  * @example
  * ```ts
  * // Show the last 3 calls
@@ -45,6 +49,9 @@ export interface InspectHistoryOptions {
  *
  * // Filter to calls that failed (empty response)
  * inspectHistory({ filter: (r) => r.response.text === "" });
+ *
+ * // @deprecated numeric form — use the options object instead
+ * inspectHistory(3);
  * ```
  */
 export function inspectHistory(options: InspectHistoryOptions | number = {}): void {
