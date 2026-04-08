@@ -3,6 +3,28 @@ import { DiskCache } from "./DiskCache.js";
 import type { LMCallConfig, LMResponse, Message, StreamChunk } from "./types.js";
 
 /**
+ * Options accepted by the {@link LM.from} unified factory.
+ *
+ * All fields are optional — any option not provided falls back to the
+ * provider's own defaults or its environment variables.
+ */
+export interface LMFactoryOptions {
+  /** Provider API key (e.g. `OPENAI_API_KEY`). */
+  apiKey?: string;
+  /** Override the provider base URL (useful for proxies / local servers). */
+  baseURL?: string;
+  /** Default temperature for every call. */
+  temperature?: number;
+  /** Default max tokens per call. */
+  maxTokens?: number;
+  /** Number of retries on transient errors (where supported). */
+  maxRetries?: number;
+}
+
+/** Signature for a provider factory registered with {@link LM.registerProvider}. */
+export type LMProviderFactory = (model: string, options: LMFactoryOptions) => LM;
+
+/**
  * Abstract base class for all language model adapters.
  *
  * Subclasses must implement {@link LM._call} which performs the actual
@@ -12,6 +34,17 @@ import type { LMCallConfig, LMResponse, Message, StreamChunk } from "./types.js"
  * - LRU response caching
  * - Request counting
  * - Token usage aggregation
+ *
+ * Use the {@link LM.from} factory to create an LM from a `"provider/model"`
+ * string (mirrors `dspy.LM("openai/gpt-4o")` in Python):
+ * ```ts
+ * import { LM } from "@jaex/dstsx";
+ * // Register built-in providers first:
+ * import "@jaex/dstsx/lm/factory";  // or import { lmFrom } from "@jaex/dstsx"
+ *
+ * const lm = LM.from("openai/gpt-4o");
+ * const lm2 = LM.from("anthropic/claude-3-5-sonnet-20241022");
+ * ```
  */
 export abstract class LM {
   /** Human-readable name / identifier for this model instance. */
@@ -21,6 +54,59 @@ export abstract class LM {
   #diskCache: DiskCache | undefined;
   #requestCount = 0;
   #tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, cachedPromptTokens: 0 };
+
+  // ---------------------------------------------------------------------------
+  // Static provider registry — powers LM.from()
+  // ---------------------------------------------------------------------------
+
+  static readonly #registry = new Map<string, LMProviderFactory>();
+
+  /**
+   * Register a custom LM provider so it can be used with {@link LM.from}.
+   *
+   * @example
+   * ```ts
+   * LM.registerProvider("myprovider", (model, opts) => new MyCustomLM({ model, ...opts }));
+   * const lm = LM.from("myprovider/my-model");
+   * ```
+   */
+  static registerProvider(provider: string, factory: LMProviderFactory): void {
+    LM.#registry.set(provider.toLowerCase(), factory);
+  }
+
+  /**
+   * Create an LM instance from a `"provider/model"` string.
+   *
+   * Mirrors `dspy.LM("openai/gpt-4o")` in Python.
+   *
+   * Built-in providers are registered by importing `"@jaex/dstsx"` (which
+   * includes the factory side-effects).  Custom providers can be added with
+   * {@link LM.registerProvider}.
+   *
+   * @example
+   * ```ts
+   * const lm  = LM.from("openai/gpt-4o");
+   * const lm2 = LM.from("anthropic/claude-3-5-sonnet-20241022", { apiKey: "..." });
+   * const lm3 = LM.from("ollama/llama3");
+   * const lm4 = LM.from("groq/llama-3-70b-versatile");
+   * ```
+   */
+  static from(modelString: string, options: LMFactoryOptions = {}): LM {
+    const slashIdx = modelString.indexOf("/");
+    const provider = slashIdx >= 0 ? modelString.slice(0, slashIdx) : modelString;
+    const model = slashIdx >= 0 ? modelString.slice(slashIdx + 1) : "";
+    const factory = LM.#registry.get(provider.toLowerCase());
+    if (!factory) {
+      const known = [...LM.#registry.keys()].join(", ") || "none registered yet";
+      throw new Error(
+        `Unknown LM provider: "${provider}". ` +
+          `Registered providers: ${known}.\n` +
+          `Use LM.registerProvider() to add a custom provider, or import the ` +
+          `factory barrel to register built-ins: import "@jaex/dstsx".`,
+      );
+    }
+    return factory(model, options);
+  }
 
   constructor(
     model: string,
