@@ -86,9 +86,8 @@ export class XMLAdapter extends Adapter {
 
     // Fallback: if single output and nothing matched, use full trimmed text
     const outputKeys = [...sig.outputs.keys()];
-    const [singleKey] = outputKeys;
-    if (outputKeys.length === 1 && singleKey !== undefined && !(singleKey in result)) {
-      result[singleKey] = output.trim();
+    if (outputKeys.length === 1 && outputKeys[0] !== undefined && !(outputKeys[0] in result)) {
+      result[outputKeys[0]] = output.trim();
     }
 
     return result;
@@ -104,11 +103,14 @@ export class XMLAdapter extends Adapter {
   }
 
   #unescapeXml(text: string): string {
+    // NOTE: &amp; must be unescaped LAST to prevent double-unescaping.
+    // e.g. "&amp;lt;" → "&lt;" → "<" if &amp; was first; correct behavior requires
+    // processing other entities before &amp;.
     return text
-      .replace(/&amp;/g, "&")
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')
-      .replace(/&apos;/g, "'");
+      .replace(/&apos;/g, "'")
+      .replace(/&amp;/g, "&");
   }
 }

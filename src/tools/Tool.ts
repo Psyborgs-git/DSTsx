@@ -187,18 +187,50 @@ export class Tool {
   /**
    * Infer argument schema from function parameter names using
    * `Function.prototype.toString()`.
+   *
+   * Uses a parenthesis-depth counter (no complex regex) to locate the parameter
+   * list, avoiding ReDoS vulnerabilities on adversarially crafted strings.
    */
   static #inferArgs(fn: (...args: unknown[]) => unknown): Record<string, ToolArgDef> {
     const src = fn.toString();
-    // Extract the parameter list from the function source
-    const paramMatch = /(?:function\s*\w*\s*|(?:\w+|\()\s*=>|\()\s*\(([^)]*)\)/.exec(src)
-      ?? /^(?:async\s+)?(?:function\s*\w*\s*)?\(([^)]*)\)/.exec(src);
-    const params = paramMatch?.[1] ?? "";
+
+    // Locate the opening parenthesis of the parameter list.
+    // For arrow functions like `x => x`, there may be no parens — handle via fallback.
+    const parenStart = src.indexOf("(");
+    if (parenStart === -1) return {};
+
+    // Walk to the matching closing parenthesis using a depth counter.
+    let depth = 0;
+    let parenEnd = -1;
+    for (let i = parenStart; i < src.length; i++) {
+      if (src[i] === "(") {
+        depth++;
+      } else if (src[i] === ")") {
+        depth--;
+        if (depth === 0) {
+          parenEnd = i;
+          break;
+        }
+      }
+    }
+
+    if (parenEnd === -1) return {};
+
+    const params = src.slice(parenStart + 1, parenEnd).trim();
+    if (!params) return {};
+
     const args: Record<string, ToolArgDef> = {};
+    // Valid JS identifier pattern — anchored, no backtracking
+    const identRe = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 
     for (const raw of params.split(",")) {
-      const name = raw.trim().replace(/\s*=.*$/, "").replace(/^\.\.\./, "");
-      if (!name || name.length === 0) continue;
+      const name = raw
+        .trim()
+        .replace(/^\.\.\./u, "")    // rest parameters (...args)
+        .replace(/[:=].*$/su, "")   // default values (a = 1) and TS type annotations (a: string)
+        .replace(/[{[.\]]/gu, "")   // destructuring patterns
+        .trim();
+      if (!name || !identRe.test(name)) continue;
       args[name] = { type: "string", required: true };
     }
 
