@@ -1,5 +1,8 @@
 // DSTsx — public barrel export
 // Re-exports every public symbol from all sub-modules.
+// Also triggers side-effect: registers all built-in LM providers with LM.from().
+
+import "./lm/factory.js";
 
 export * from "./signatures/index.js";
 export * from "./primitives/index.js";

@@ -1,6 +1,12 @@
 export { streamify } from "./streamify.js";
 export { asyncify } from "./asyncify.js";
+export { syncify } from "./syncify.js";
+export { trackUsage, recordUsage } from "./trackUsage.js";
+export type { AggregatedUsage } from "./trackUsage.js";
 export { inspectHistory } from "./inspectHistory.js";
+export type { InspectHistoryOptions } from "./inspectHistory.js";
+export { benchmark } from "./benchmark.js";
+export type { BenchmarkResult, BenchmarkOptions } from "./benchmark.js";
 export { load, registerModule, ModuleRegistry } from "./load.js";
 export { configureCache } from "./configureCache.js";
 export type { CacheOptions } from "./configureCache.js";

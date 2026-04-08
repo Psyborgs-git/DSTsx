@@ -1,4 +1,5 @@
 import { Prediction } from "../primitives/index.js";
+import { Parameter } from "../primitives/Parameter.js";
 
 /**
  * The return type of {@link Module.forward} — either a single prediction or
@@ -69,6 +70,34 @@ export abstract class Module {
   }
 
   /**
+   * Recursively discover all {@link Parameter} instances by walking the own
+   * enumerable properties of this instance.
+   *
+   * Mirrors `dspy.Module.named_parameters()` in Python (analogous to
+   * `torch.nn.Module.named_parameters()`).
+   *
+   * @example
+   * ```ts
+   * for (const [name, param] of module.namedParameters()) {
+   *   console.log(name, param.value);
+   * }
+   * ```
+   */
+  namedParameters(): Array<[string, Parameter]> {
+    const results: Array<[string, Parameter]> = [];
+    for (const [key, value] of Object.entries(this)) {
+      if (value instanceof Parameter) {
+        results.push([key, value]);
+      } else if (value instanceof Module) {
+        results.push(
+          ...value.namedParameters().map(([k, v]): [string, Parameter] => [`${key}.${k}`, v]),
+        );
+      }
+    }
+    return results;
+  }
+
+  /**
    * Serialize the module's learnable parameters (e.g. `Predict.demos`) to a
    * plain JSON-compatible object.
    */
@@ -99,6 +128,7 @@ export abstract class Module {
    * Returns a new module with the same prototype.  All sub-{@link Module}
    * properties are recursively cloned so that mutating the clone's learnable
    * parameters (e.g. `Predict.demos`) does **not** affect the original.
+   * {@link Parameter} properties are also cloned.
    * Array properties are shallow-copied (their elements are not cloned).
    * All other properties are copied by reference.
    */
@@ -106,7 +136,11 @@ export abstract class Module {
     const cloned = Object.create(Object.getPrototypeOf(this) as object) as this;
     for (const key of Object.keys(this)) {
       const value = (this as Record<string, unknown>)[key];
-      if (value instanceof Module) {
+      // Parameter check MUST precede Module check in case a future subclass
+      // of Parameter also extends Module.
+      if (value instanceof Parameter) {
+        (cloned as Record<string, unknown>)[key] = value.clone();
+      } else if (value instanceof Module) {
         (cloned as Record<string, unknown>)[key] = value.clone();
       } else if (Array.isArray(value)) {
         (cloned as Record<string, unknown>)[key] = [...(value as unknown[])];

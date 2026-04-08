@@ -56,3 +56,21 @@ export interface StreamChunk {
   /** Raw provider chunk (opaque). */
   raw: unknown;
 }
+
+/**
+ * A single entry in the LM call history, recorded for every non-cached
+ * request made through {@link LM.call}.
+ */
+export interface LMCallRecord {
+  /** The prompt that was sent (string or message array). */
+  prompt: string | Message[];
+  /** The call configuration used. */
+  config: LMCallConfig;
+  /** The response returned by the provider. */
+  response: LMResponse;
+  /**
+   * Unix timestamp (ms) at which the response was received,
+   * i.e. `Date.now()` after the provider call completed.
+   */
+  timestamp: number;
+}

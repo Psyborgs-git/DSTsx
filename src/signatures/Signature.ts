@@ -105,6 +105,41 @@ export class Signature {
     return this.with({ outputs });
   }
 
+  /**
+   * Append an input or output field and return a new Signature.
+   *
+   * Mirrors `dspy.Signature.append()` in Python.
+   *
+   * @param name    - Field name.
+   * @param meta    - Field metadata.
+   * @param type    - `"input"` or `"output"` (default: `"output"`).
+   */
+  append(name: string, meta: FieldMeta = {}, type: "input" | "output" = "output"): Signature {
+    return type === "input" ? this.withInput(name, meta) : this.withOutput(name, meta);
+  }
+
+  /**
+   * Remove a field by name and return a new Signature.
+   *
+   * Mirrors `dspy.Signature.delete()` in Python.
+   * Searches inputs first, then outputs.
+   *
+   * @throws {Error} if the field is not found.
+   */
+  delete(name: string): Signature {
+    if (this.inputs.has(name)) {
+      const inputs = new Map(this.inputs);
+      inputs.delete(name);
+      return this.with({ inputs });
+    }
+    if (this.outputs.has(name)) {
+      const outputs = new Map(this.outputs);
+      outputs.delete(name);
+      return this.with({ outputs });
+    }
+    throw new Error(`Signature.delete: field "${name}" not found`);
+  }
+
   // ---------------------------------------------------------------------------
   // Serialization
   // ---------------------------------------------------------------------------
